@@ -240,12 +240,26 @@ python3 -I tools/hsm01_whoami.py                       # must say "240.xx -> cus
 `fw_hatch_check.py` checks that the DFU recovery hatch runs first and that the last flash page is
 left alone: never flash a build that does not pass it.
 
-### 5. 🖥️ Build and run New Hera-nux
+### 5. 🖥️ Install New Hera-nux
 
+The installer builds the app, installs it in your home (`~/.local/share/new-hera-nux/`), adds it
+to the application menu, **starts it minimized in the system tray when your session opens**, and
+starts it right away:
+```sh
+packaging/install.sh                  # from the source tree (needs Rust)
+./install.sh                          # or from a release archive: new-hera-nux-<version>-<arch>.tar.gz
+```
+🔄 **Run it again to update**: the program is replaced, the app restarted, and your copies of the
+shipped modules get their new code (your settings and secrets stay; `--keep-modules` leaves
+them alone). Options: `--no-autostart`, `--no-udev`, `--no-start`, `--uninstall` (your settings
+and modules stay); `--help` for all.
+
+Without installing, straight from the build:
 ```sh
 cd app && cargo build --release
-./target/release/hsm01-app            # window + device
-./target/release/hsm01-app --headless # without window, as a background service
+./target/release/hsm01-app             # window + device
+./target/release/hsm01-app --minimized # in the system tray, no window until you ask
+./target/release/hsm01-app --headless  # without window nor tray, as a background service
 ```
 On first launch, the configuration is created in `~/.config/hsm01/config.toml` and the shipped
 modules are copied to `~/.local/share/hsm01/modules/`: switch them on in the **Modules** tab. 🧩

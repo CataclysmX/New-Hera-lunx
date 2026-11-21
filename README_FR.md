@@ -253,12 +253,26 @@ python3 -I tools/hsm01_whoami.py                       # doit afficher « 240.xx
 `fw_hatch_check.py` vérifie que la trappe de secours DFU s'exécute en premier et que la dernière
 page de la flash n'est pas touchée : ne flashez jamais une compilation qui ne passe pas ce contrôle.
 
-### 5. 🖥️ Compiler et lancer New Hera-nux
+### 5. 🖥️ Installer New Hera-nux
 
+L'installeur compile l'app, l'installe dans votre dossier personnel (`~/.local/share/new-hera-nux/`),
+l'ajoute au menu des applications, **la lance réduite dans la barre système à l'ouverture de la
+session**, et la démarre tout de suite :
+```sh
+packaging/install.sh                  # depuis les sources (Rust nécessaire)
+./install.sh                          # ou depuis l'archive d'une release : new-hera-nux-<version>-<arch>.tar.gz
+```
+🔄 **Le relancer met à jour** : le programme est remplacé, l'app relancée, et vos copies des
+modules livrés reçoivent leur nouveau code (vos réglages et données sensibles restent ;
+`--keep-modules` les laisse tels quels). Options : `--no-autostart`, `--no-udev`, `--no-start`,
+`--uninstall` (vos réglages et modules restent) ; `--help` pour tout.
+
+Sans installer, directement depuis la compilation :
 ```sh
 cd app && cargo build --release
-./target/release/hsm01-app            # fenêtre + appareil
-./target/release/hsm01-app --headless # sans fenêtre, en service
+./target/release/hsm01-app             # fenêtre + appareil
+./target/release/hsm01-app --minimized # dans la barre système, sans fenêtre tant qu'on ne la demande pas
+./target/release/hsm01-app --headless  # sans fenêtre ni icône, en service
 ```
 Au premier lancement, la configuration est créée dans `~/.config/hsm01/config.toml` et les modules
 livrés sont copiés dans `~/.local/share/hsm01/modules/` : allumez-les dans l'onglet **Modules**. 🧩

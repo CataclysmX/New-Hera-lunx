@@ -8,6 +8,7 @@ refusé avec un message (support prévu plus tard).
 cd app && cargo build --release
 ./target/release/hsm01-app            # fenêtre + appareil, audio PipeWire (repli : simulation)
 ./target/release/hsm01-app --headless # sans fenêtre (service), --page N : page de départ
+./target/release/hsm01-app --minimized # dans la barre système, sans fenêtre (démarrage de session)
 ./target/release/hsm01-app --sim      # audio simulé (sans PipeWire)
 ./target/release/hsm01-app --print-default-config
 ./target/release/hsm01-app --snapshot page.png --page 2 [--sim]   # rendu d'une page en PNG, sans appareil
@@ -112,7 +113,20 @@ l'ancien fichier est aussi gardé en `config.toml.bak`). « Annuler » recharge 
 « liste » à côté d'un nom de cible propose les appareils présents et les applications qui jouent du
 son. Icône dans la barre système (`tray.rs`, StatusNotifierItem) : ouvrir la fenêtre, choisir la
 page, quitter ; fermer la fenêtre laisse l'app tourner (sans barre système, fermer quitte). Fermer
-avec des modifications non enregistrées demande quoi faire.
+avec des modifications non enregistrées demande quoi faire. **Une seule instance** (`single.rs`,
+socket `$XDG_RUNTIME_DIR/hsm01-app.sock`) : relancer l'app (menu des applications) envoie
+« show » à celle qui tourne, qui ouvre sa fenêtre ; `--minimized` démarre sans fenêtre (l'icône
+ou un nouveau lancement l'ouvre ; sans barre système, l'app tourne cachée jusqu'au prochain
+lancement) et ne fait rien si l'app tourne déjà.
+
+**Installer** : `packaging/install.sh` (depuis les sources : compile l'app ; ou `./install.sh` de
+l'archive d'une release) installe pour l'utilisateur dans `~/.local/share/new-hera-nux/`
+(programme, modules livrés et bibliothèque Python à côté, `VERSION`), liens dans `~/.local/bin`,
+entrée du menu et icône, démarrage réduit à l'ouverture de session (`~/.config/autostart/`,
+`--minimized`, après le panneau), règle udev (sudo), puis démarre l'app. Relancé, il met à jour :
+programme remplacé, app relancée, vos copies des modules livrés mises à jour (sauf leur fichier
+de réglages s'il existe, et `.env`) ; options `--keep-modules`, `--no-autostart`, `--no-udev`,
+`--no-start`, `--uninstall` (réglages et modules gardés).
 
 Veille (`[standby]`, réglable dans « Appareil ») : après `after_secs` (300 par défaut, 10 minimum)
 sans action (molette, clic, modification dans la fenêtre, changement de page), le rétroéclairage

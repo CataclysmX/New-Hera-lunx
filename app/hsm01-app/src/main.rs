@@ -1,7 +1,9 @@
 //! `hsm01-app` – « new hera-nux », companion app for the Hercules Stream 100 running the custom
 //! firmware.
 //! Window with live preview and editor (`gui`), the device engine in its own thread
-//! (docs/app/companion.md). Options: `--headless` (no window), `--page N` (start page),
+//! (docs/app/companion.md). Options: `--headless` (no window), `--minimized` (started in the system
+//! tray: no window until its icon or a new start asks for it; for the session's autostart),
+//! `--page N` (start page),
 //! `--sim` (simulated audio), `--print-default-config`, `--snapshot <png> [--page N]`,
 //! `--keys <combo>` (test a shortcut).
 
@@ -95,7 +97,12 @@ fn main() -> ExitCode {
         .and_then(|i| args.get(i + 1)?.parse::<usize>().ok())
         .map_or(0, |p| p.saturating_sub(1));
     let headless = args.iter().any(|a| a == "--headless");
-    if !headless && single::ask_running_instance() {
+    let minimized = args.iter().any(|a| a == "--minimized");
+    if !headless && minimized && single::running() {
+        eprintln!("hsm01-app: {}", tr("new hera-nux is already running"));
+        return ExitCode::SUCCESS;
+    }
+    if !headless && !minimized && single::ask_running_instance() {
         eprintln!("hsm01-app: {}", tr("new hera-nux is already running – its window is shown"));
         return ExitCode::SUCCESS;
     }
@@ -127,16 +134,21 @@ fn main() -> ExitCode {
         }
     };
     single::listen(shared.clone());
-    // with a tray icon, closing the window keeps the app running; the icon reopens it
+    // with a tray icon, closing the window keeps the app running; the icon reopens it.
+    // `--minimized`: no window until the icon or a new start (single instance) asks for one
     let tray = tray::spawn(shared.clone());
+    let mut window = !minimized;
     loop {
-        if let Err(e) = gui::run(shared.clone()) {
-            eprintln!("hsm01-app: {}", tf!("{e} – without a window", e = e));
-            break;
+        if window {
+            if let Err(e) = gui::run(shared.clone()) {
+                eprintln!("hsm01-app: {}", tf!("{e} – without a window", e = e));
+                break;
+            }
+            if !tray {
+                shared.quit.store(true, Ordering::Relaxed);
+            }
         }
-        if !tray {
-            shared.quit.store(true, Ordering::Relaxed);
-        }
+        window = true;
         while !shared.quit.load(Ordering::Relaxed)
             && !shared.show_window.swap(false, Ordering::Relaxed)
         {

@@ -147,7 +147,8 @@ jobs:
       - name: Build release
         run: cargo build --release --locked
 
-      # hsm01-app finds modules/ and clients/python/ next to itself
+      # hsm01-app finds modules/ and clients/python/ next to itself; install.sh installs or
+      # updates it for the user (menu entry, started minimized at login, udev rule)
       - name: Package
         id: pkg
         shell: bash
@@ -162,6 +163,9 @@ jobs:
           cp -r clients/python "$d/clients/python"
           find "$d" -name __pycache__ -type d -prune -exec rm -rf {} +
           cp ../packaging/udev/70-hercules-stream100.rules "$d/"
+          cp ../packaging/install.sh "$d/"
+          cp ../public/tray.svg "$d/new-hera-nux.svg"
+          echo "$version" > "$d/VERSION"
           cp ../README.md "$d/README.md"
           tar -C dist -czf "dist/$name.tar.gz" "$name"
           (cd dist && sha256sum "$name.tar.gz" > "$name.tar.gz.sha256")
