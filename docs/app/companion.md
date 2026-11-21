@@ -321,9 +321,11 @@ l'appui, sans délai).
 
 Textes trop longs pour leur cadre : défilement aller-retour (`scroll = true`, par défaut ; 30 px/s
 par pas de 2 px, pauses de 1,5 s), sinon coupés avec « … ».
-**Emoji** (partout : textes, alertes, pilules, noms Discord) : un caractère absent de la police de
-texte est pris en **couleur** dans Noto Color Emoji (l'image PNG de son glyphe, lue par `ttf-parser`,
-à 1,15 × la taille du texte, posée sur la ligne de base), sinon dans une police de secours
+**Emoji** (partout : textes, alertes, pilules, noms Discord) : un pictogramme (U+1F000 et au-delà,
+même si la police de texte en a un en noir et blanc, comme DejaVu Sans) ou un caractère absent de
+la police de texte est pris en **couleur** dans Noto Color Emoji (l'image PNG de son glyphe, lue par
+`ttf-parser`, à 1,15 × la taille du texte, posée sur la ligne de base ; une police d'emoji sans
+images, COLR vectoriel, n'est pas retenue), sinon dans une police de secours
 (DejaVu Sans, Noto Sans Symbols 2 / Symbols : flèches, coches, notes…) ; variantes (U+FE0F), liants
 (ZWJ) et couleurs de peau ne sont pas composés : l'emoji de base s'affiche seul (familles et
 drapeaux en morceaux). Code : `Renderer::piece` / `advance`, `emoji_png`. Aperçu : `TMPDIR=… cargo

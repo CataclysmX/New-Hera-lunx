@@ -272,26 +272,34 @@ fn near_build(rel: &str) -> Vec<PathBuf> {
         .unwrap_or_default()
 }
 
-/// The modules shipped with the app: `$HSM01_SHIPPED_MODULES`, `app/modules` next to the build,
-/// or `/usr/share/hsm01/modules`.
+/// `app/<rel>` of the source tree the app was built from: found wherever the build went
+/// (`CARGO_TARGET_DIR`, CI); a folder that is not there is skipped.
+fn near_source(rel: &str) -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join(rel)
+}
+
+/// The modules shipped with the app: `$HSM01_SHIPPED_MODULES`, `app/modules` next to the build
+/// or in the source tree it was built from, or `/usr/share/hsm01/modules`.
 pub fn shipped_dir() -> Option<PathBuf> {
     let mut candidates: Vec<PathBuf> = std::env::var_os("HSM01_SHIPPED_MODULES")
         .map(PathBuf::from)
         .into_iter()
         .collect();
     candidates.extend(near_build("modules"));
+    candidates.push(near_source("modules"));
     candidates.push("/usr/share/hsm01/modules".into());
     candidates.into_iter().find(|d| !scan(d).is_empty())
 }
 
 /// The Python library of the API (folder holding the `hsm01` package): `$HSM01_PYLIB`,
-/// `app/clients/python` next to the build, or `/usr/share/hsm01/python`.
+/// `app/clients/python` next to the build or in its source tree, or `/usr/share/hsm01/python`.
 pub fn python_lib() -> Option<PathBuf> {
     let mut candidates: Vec<PathBuf> = std::env::var_os("HSM01_PYLIB")
         .map(PathBuf::from)
         .into_iter()
         .collect();
     candidates.extend(near_build("clients/python"));
+    candidates.push(near_source("clients/python"));
     candidates.push("/usr/share/hsm01/python".into());
     candidates
         .into_iter()

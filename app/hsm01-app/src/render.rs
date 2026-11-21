@@ -227,7 +227,11 @@ impl Renderer {
                 .iter()
                 .filter_map(|p| Font::from_bytes(std::fs::read(p).ok()?, FontSettings::default()).ok())
                 .collect(),
-            emoji_font: FONT_EMOJI.iter().find_map(|p| std::fs::read(p).ok()),
+            // only a font whose emoji are pictures (CBDT / sbix): a vector one (COLR) draws nothing
+            emoji_font: FONT_EMOJI.iter().find_map(|p| {
+                let data = std::fs::read(p).ok()?;
+                emoji_png(&data, '\u{1F600}', 16).is_some().then_some(data)
+            }),
             emoji: HashMap::new(),
             emoji_has: HashMap::new(),
         })
@@ -968,10 +972,12 @@ impl Renderer {
             .or_insert_with(|| font.rasterize(ch, size))
     }
 
-    /// Whether `ch` is drawn as a colour emoji: the text font lacks it, the emoji font has it.
+    /// Whether `ch` is drawn as a colour emoji: the emoji font has it, and it is a pictograph
+    /// (U+1F000 and above: some text fonts, DejaVu Sans, have them in black and white) or the
+    /// text font lacks it (symbols such as ❤ keep the text font's glyph).
     fn is_emoji(&mut self, ch: char, bold: bool) -> bool {
         let main = if bold { &self.bold } else { &self.regular };
-        if ch.is_ascii() || main.lookup_glyph_index(ch) != 0 {
+        if ch.is_ascii() || (u32::from(ch) < 0x1F000 && main.lookup_glyph_index(ch) != 0) {
             return false;
         }
         let Some(data) = &self.emoji_font else {
