@@ -1,0 +1,6 @@
+# Module livré avec new hera-nux (docs/app/modules.md) : à modifier librement ici ;
+# « Réinstaller les modules livrés » remet la version d'origine.
+name = "Media player"
+description = "\"Media\" page: cover, title, artist, progress of the player that plays (Spotify, browser, VLC…). Buttons 1-2-3: previous, play / pause, next; knob 1: back / forward; knob 4: player volume. Options: --alert (alert at each track), --show (page shown at start)."
+file = "main.py"
+args = []

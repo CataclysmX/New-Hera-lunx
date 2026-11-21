@@ -1,0 +1,8 @@
+[package]
+name = "hsm01-proto"
+description = "Hercules Stream 100 (HSM01) wire protocol: framing, CRC, commands, RLE, input parsing"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]

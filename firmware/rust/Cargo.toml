@@ -1,0 +1,43 @@
+[package]
+name = "hsm01-fw"
+description = "Custom firmware for the Hercules Stream 100 (STM32L4R7) – DFU escape hatches, free-screen protocol, raw inputs, boot logo"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+
+[dependencies]
+cortex-m = { version = "0.7", features = ["critical-section-single-core", "inline-asm"] }
+# set-vtor: VTOR = our vector table even if the ROM bootloader left system flash remapped at 0x0.
+cortex-m-rt = { version = "0.7", features = ["set-vtor"] }
+# No "memory-x": our own memory.x keeps the last flash page (device data) out of reach.
+# "dual-bank": option bytes read from the device have DBANK=1 (4 KiB pages).
+# TIM5 as time base: TIM2 = backlight PWM, TIM8 = LED PWM.
+embassy-stm32 = { version = "0.6", features = ["stm32l4r7zi", "unstable-pac", "dual-bank", "time-driver-tim5"] }
+embassy-executor = { version = "0.10", features = ["platform-cortex-m", "executor-thread"] }
+embassy-futures = "0.1"
+embassy-time = "0.5"
+embassy-usb = "0.6"
+static_cell = "2"
+panic-halt = "1"
+
+[build-dependencies]
+# boot logo conversion (build.rs, host side only)
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+debug = true
+
+[profile.dev]
+opt-level = "s"
+
+# build.rs decodes/resizes the logo: optimise it
+[profile.release.build-override]
+opt-level = 3
+
+# Bulk OUT ring buffer (no per-packet NAK), see docs/firmware/stage2.md
+[patch.crates-io]
+embassy-usb-synopsys-otg = { path = "vendor/embassy-usb-synopsys-otg" }

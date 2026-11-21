@@ -1,0 +1,213 @@
+# Module livré avec new hera-nux (docs/app/modules.md, docs/app/obs.md) : à modifier librement
+# ici ; « Réinstaller les modules livrés » remet la version d'origine (le .env reste).
+name = "OBS"
+description = "OBS Studio through its WebSocket server (OBS 28 and later): scenes, audio mixer and meters on the knobs, stream, recording, replay; commands for each scene, audio source, profile, collection, and your favourite sources, filters and media. Port and password read in the OBS settings of this computer."
+file = "main.py"
+args = []
+
+# Onglet « OBS » de la fenêtre (module activé) : un formulaire sur obs.toml ; les listes (sources
+# audio, scènes, leurs sources, filtres, médias) viennent du module connecté à OBS.
+[settings]
+file = "obs.toml"
+editor = "formulaire"
+guide = """
+In OBS: Tools > WebSocket Server Settings > tick "Enable WebSocket server", then "Apply". That's all: on this computer, the module reads the port and the password in the OBS settings.
+OBS on another computer: its address and port in "Connection" below, its password (OBS > "Show Connect Info") in the sensitive data.
+On the OBS page: knob 1 chooses the scene (click: show it), knobs 2 to 4 set the volume of three audio sources (click: mute). Protocol: https://github.com/obsproject/obs-websocket
+"""
+
+[[settings.field]]
+kind = "section"
+label = "Knobs"
+
+[[settings.field]]
+key = "molettes.k2"
+label = "Knob 2"
+kind = "choice"
+source = "entrees"
+optional = true
+help = "Audio source of the OBS mixer: turn = volume, click = mute. By default: the mic."
+
+[[settings.field]]
+key = "molettes.k3"
+label = "Knob 3"
+kind = "choice"
+source = "entrees"
+optional = true
+help = "By default: the desktop audio."
+
+[[settings.field]]
+key = "molettes.k4"
+label = "Knob 4"
+kind = "choice"
+source = "entrees"
+optional = true
+help = "By default: the next audio source."
+
+[[settings.field]]
+key = "pas"
+label = "Volume step"
+kind = "number"
+min = 0.5
+max = 10.0
+step = 0.5
+unit = "% of the slider per step"
+default = 2.0
+help = "The slider of the OBS mixer (its dB scale)."
+
+[[settings.field]]
+key = "vumetres"
+label = "Meters"
+kind = "bool"
+default = true
+help = "The levels of the three sources, like the OBS mixer."
+
+[[settings.field]]
+kind = "section"
+label = "Page buttons"
+help = "What each of the 4 buttons under the screen does on the OBS page."
+
+[[settings.field]]
+key = "boutons.b1"
+label = "Button 1"
+kind = "choice"
+choices = ["direct", "enregistrement", "pause", "replay", "caméra virtuelle", "transition", "mode studio", "rien"]
+choice_labels = ["stream", "recording", "pause", "replay", "virtual camera", "transition", "studio mode", "nothing"]
+default = "direct"
+
+[[settings.field]]
+key = "boutons.b2"
+label = "Button 2"
+kind = "choice"
+choices = ["direct", "enregistrement", "pause", "replay", "caméra virtuelle", "transition", "mode studio", "rien"]
+choice_labels = ["stream", "recording", "pause", "replay", "virtual camera", "transition", "studio mode", "nothing"]
+default = "enregistrement"
+
+[[settings.field]]
+key = "boutons.b3"
+label = "Button 3"
+kind = "choice"
+choices = ["direct", "enregistrement", "pause", "replay", "caméra virtuelle", "transition", "mode studio", "rien"]
+choice_labels = ["stream", "recording", "pause", "replay", "virtual camera", "transition", "studio mode", "nothing"]
+default = "pause"
+
+[[settings.field]]
+key = "boutons.b4"
+label = "Button 4"
+kind = "choice"
+choices = ["direct", "enregistrement", "pause", "replay", "caméra virtuelle", "transition", "mode studio", "rien"]
+choice_labels = ["stream", "recording", "pause", "replay", "virtual camera", "transition", "studio mode", "nothing"]
+default = "replay"
+
+[[settings.field]]
+key = "maintenir_pour_arreter"
+label = "Stop by holding"
+kind = "bool"
+default = true
+help = "Stop the stream or the recording from a button of the page: hold it (a short press does not stop it). The commands of the Controls tab ask nothing."
+
+[[settings.field]]
+kind = "section"
+label = "Favourites"
+help = "Each one becomes a command of the Controls tab, to bind to a button of any page."
+
+[[settings.field]]
+key = "source"
+kind = "list"
+label = "Sources to show / hide"
+add = "+ Add a source"
+
+  [[settings.field.field]]
+  key = "scene"
+  label = "Scene"
+  kind = "choice"
+  source = "scenes"
+
+  [[settings.field.field]]
+  key = "source"
+  label = "Source"
+  kind = "choice"
+  source = "elements:{scene}"
+
+[[settings.field]]
+key = "filtre"
+kind = "list"
+label = "Filters to switch on / off"
+add = "+ Add a filter"
+
+  [[settings.field.field]]
+  key = "source"
+  label = "Source"
+  kind = "choice"
+  source = "avec_filtres"
+
+  [[settings.field.field]]
+  key = "filtre"
+  label = "Filter"
+  kind = "choice"
+  source = "filtres:{source}"
+
+[[settings.field]]
+key = "media"
+kind = "list"
+label = "Media to play"
+help = "\"Play …\" restarts the media source (sound, video) from the beginning; it must be in the scene shown."
+add = "+ Add a media"
+
+  [[settings.field.field]]
+  key = "source"
+  label = "Media source"
+  kind = "choice"
+  source = "medias"
+
+[[settings.field]]
+kind = "section"
+label = "Pills"
+
+[[settings.field]]
+key = "pilules.scene"
+label = "Scene change"
+kind = "bool"
+default = true
+help = "\"SCENE: GAME\" at the bottom of the screen (also when the scene changes in OBS)."
+
+[[settings.field]]
+key = "pilules.son"
+label = "Knob source muted / unmuted"
+kind = "bool"
+default = true
+
+[[settings.field]]
+key = "pilules.sorties"
+label = "Stream, recording, replay, camera"
+kind = "bool"
+default = true
+help = "\"LIVE\", \"RECORDING PAUSED\", \"REPLAY SAVED\"…"
+
+[[settings.field]]
+kind = "section"
+label = "Connection"
+
+[[settings.field]]
+key = "adresse"
+label = "OBS address"
+kind = "text"
+default = "127.0.0.1"
+help = "The computer where OBS runs. This one: port and password read in the OBS settings."
+
+[[settings.field]]
+key = "port"
+label = "Port"
+kind = "number"
+min = 1
+max = 65535
+optional = true
+default = 4455
+help = "Without: the one of the OBS settings of this computer (4455 by default)."
+
+# Données sensibles : saisies dans l'onglet, gardées dans .env (lisible par vous seul).
+[[secret]]
+name = "OBS_PASSWORD"
+label = "WebSocket server password"
+description = "Only for an OBS on another computer (or to replace the one of this computer): OBS > Tools > WebSocket Server Settings > Show Connect Info"
+hidden = true

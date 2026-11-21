@@ -1,0 +1,12 @@
+# French texts of this module (hsm01/i18n.py): "English" = "French", same {placeholders}.
+name = "Français"
+
+[text]
+"Counter" = "Compteur"
+"Counter {n}" = "Compteur {n}"
+"knob 1: count · button 1: alert" = "molette 1 : compter · bouton 1 : alerte"
+"My module" = "Mon module"
+"My module: a page, knob 1 counts, button 1 sends an alert." = "Mon module : une page, la molette 1 compte, le bouton 1 envoie une alerte."
+"Reset" = "Remettre à zéro"
+"the counter starts again from 0" = "le compteur repart de 0"
+"The counter is {n}" = "Le compteur vaut {n}"

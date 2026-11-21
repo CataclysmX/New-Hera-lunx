@@ -1,0 +1,8 @@
+# French texts of this module (hsm01/i18n.py): "English" = "French", same {placeholders}.
+name = "Français"
+
+[text]
+"4 endless tracks of tiles, one per knob: turning chooses, clicking runs. Layout, tracks and tiles: \"Stream deck\" tab of the window (module switched on), or deck.toml in this folder." = "4 pistes de cases sans fin, une par molette : tourner choisit, cliquer lance. Disposition, pistes et cases : onglet « Stream deck » de la fenêtre (module activé), ou deck.toml de ce dossier."
+"Knob {n}" = "Molette {n}"
+"tile \"{title}\" ({widget})" = "case « {title} » ({widget})"
+"{tracks} tracks, {tiles} tiles, layout {layout}" = "{tracks} pistes, {tiles} cases, disposition {layout}"

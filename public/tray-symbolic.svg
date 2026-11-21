@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <!-- Tray version of tray.svg, readable at 16-22 px: filled microphone capsule with two grille
+       slots, the holder arc, and the stand ending in the gecko's curled tail. -->
+  <path fill="currentColor" fill-rule="evenodd"
+        d="M12 1.2a4.2 4.2 0 0 1 4.2 4.2v5a4.2 4.2 0 0 1-8.4 0v-5A4.2 4.2 0 0 1 12 1.2z
+           M9.8 5.2h4.4v1.5H9.8z M9.8 8.3h4.4v1.5H9.8z"/>
+  <g fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round">
+    <path d="M5.2 10.6a6.8 6.8 0 0 0 13.6 0"/>
+    <path d="M12 17.4v2.4a2.5 2.5 0 0 0 5 0a1.35 1.35 0 0 0-2.7 0"/>
+  </g>
+</svg>

@@ -1,0 +1,28 @@
+# Reverse-engineering artefacts (regenerable, see docs/re/tools.md) and vendor binaries
+re_work/
+Hercules_Stream_Control_*.exe
+
+# Build outputs
+app/target/
+driver/rust/target/
+driver/c/build/
+firmware/rust/target/
+firmware/rust/hsm01-fw.bin
+firmware/proto-tests/target/
+firmware/proto-tests/Cargo.lock
+node_modules/
+__pycache__/
+*.pyc
+
+# Device backups (contain the device serial number) - never commit
+backups/
+backups*.tar.gz
+
+# USB captures of the official software and data taken from them (official traffic, device
+# serial number): kept locally, never published
+wireshark*.txt
+[tT]est[zZ]ireshqrk*.txt
+sendData.bin
+shutdownScreen.bin
+hercules_extract.png
+Notes/

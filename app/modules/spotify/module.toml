@@ -1,0 +1,142 @@
+# Module livré avec new hera-nux (docs/app/modules.md, docs/app/spotify.md) : à modifier
+# librement ici ; « Réinstaller les modules livrés » remet la version d'origine (le .env reste).
+name = "Spotify"
+description = "Spotify through its web API and your Spotify Developer application: the track's page (cover, like, shuffle, repeat, volume), commands (play, next, like, radio, playlists…). Controlling playback needs Spotify Premium. ID and secret: \"Spotify\" tab of the window."
+file = "main.py"
+args = []
+
+# Onglet « Spotify » de la fenêtre (module activé) : un formulaire sur spotify.toml ; la liste
+# des listes de lecture vient du module connecté.
+[settings]
+file = "spotify.toml"
+editor = "formulaire"
+guide = """
+First time: create YOUR application at https://developer.spotify.com/dashboard ("Create app"; API: Web API).
+In its settings, Redirect URIs: add http://127.0.0.1:8888/callback (exactly), then "Save".
+Copy its Client ID and its Client secret below, then "Save the sensitive data": your browser opens on Spotify, accept, and that's it.
+Controlling playback (play, volume, shuffle, radio…) needs Spotify Premium; "Like" and playlists work without it.
+"""
+
+[[settings.field]]
+kind = "section"
+label = "Knobs"
+
+[[settings.field]]
+key = "pas"
+label = "Volume step"
+kind = "number"
+min = 1
+max = 20
+unit = "% per step"
+default = 5
+
+[[settings.field]]
+key = "playlist"
+kind = "list"
+label = "Favourite playlists"
+help = "For each one, commands (Controls tab): play it, add the current track to it, remove it from it."
+add = "+ Add a playlist"
+
+  [[settings.field.field]]
+  key = "nom"
+  label = "Playlist"
+  kind = "choice"
+  source = "playlists"
+  help = "Your playlists (module connected)"
+
+[[settings.field]]
+kind = "section"
+label = "Page buttons"
+help = "What each of the 4 buttons under the screen does on the Spotify page. Holding \"next\" also starts the track radio."
+
+[[settings.field]]
+key = "boutons.b1"
+label = "Button 1"
+kind = "choice"
+choices = ["précédent", "lecture / pause", "suivant", "j'aime", "radio du titre", "aléatoire", "répétition", "sourdine", "rien"]
+choice_labels = ["previous", "play / pause", "next", "like / unlike", "track radio", "shuffle", "repeat", "mute", "nothing"]
+default = "précédent"
+
+[[settings.field]]
+key = "boutons.b2"
+label = "Button 2"
+kind = "choice"
+choices = ["précédent", "lecture / pause", "suivant", "j'aime", "radio du titre", "aléatoire", "répétition", "sourdine", "rien"]
+choice_labels = ["previous", "play / pause", "next", "like / unlike", "track radio", "shuffle", "repeat", "mute", "nothing"]
+default = "lecture / pause"
+
+[[settings.field]]
+key = "boutons.b3"
+label = "Button 3"
+kind = "choice"
+choices = ["précédent", "lecture / pause", "suivant", "j'aime", "radio du titre", "aléatoire", "répétition", "sourdine", "rien"]
+choice_labels = ["previous", "play / pause", "next", "like / unlike", "track radio", "shuffle", "repeat", "mute", "nothing"]
+default = "suivant"
+
+[[settings.field]]
+key = "boutons.b4"
+label = "Button 4"
+kind = "choice"
+choices = ["précédent", "lecture / pause", "suivant", "j'aime", "radio du titre", "aléatoire", "répétition", "sourdine", "rien"]
+choice_labels = ["previous", "play / pause", "next", "like / unlike", "track radio", "shuffle", "repeat", "mute", "nothing"]
+default = "j'aime"
+
+[[settings.field]]
+kind = "section"
+label = "Knob clicks"
+help = "What a click on each knob does, on the Spotify page (turning: knob 1 the position, knob 4 the volume). Holding knob 1 opens the module menu."
+
+[[settings.field]]
+key = "clics.k1"
+label = "Knob 1"
+kind = "choice"
+choices = ["précédent", "lecture / pause", "suivant", "j'aime", "radio du titre", "aléatoire", "répétition", "sourdine", "rien"]
+choice_labels = ["previous", "play / pause", "next", "like / unlike", "track radio", "shuffle", "repeat", "mute", "nothing"]
+default = "lecture / pause"
+
+[[settings.field]]
+key = "clics.k2"
+label = "Knob 2"
+kind = "choice"
+choices = ["précédent", "lecture / pause", "suivant", "j'aime", "radio du titre", "aléatoire", "répétition", "sourdine", "rien"]
+choice_labels = ["previous", "play / pause", "next", "like / unlike", "track radio", "shuffle", "repeat", "mute", "nothing"]
+default = "aléatoire"
+
+[[settings.field]]
+key = "clics.k3"
+label = "Knob 3"
+kind = "choice"
+choices = ["précédent", "lecture / pause", "suivant", "j'aime", "radio du titre", "aléatoire", "répétition", "sourdine", "rien"]
+choice_labels = ["previous", "play / pause", "next", "like / unlike", "track radio", "shuffle", "repeat", "mute", "nothing"]
+default = "répétition"
+
+[[settings.field]]
+key = "clics.k4"
+label = "Knob 4"
+kind = "choice"
+choices = ["précédent", "lecture / pause", "suivant", "j'aime", "radio du titre", "aléatoire", "répétition", "sourdine", "rien"]
+choice_labels = ["previous", "play / pause", "next", "like / unlike", "track radio", "shuffle", "repeat", "mute", "nothing"]
+default = "sourdine"
+
+[[settings.field]]
+kind = "section"
+label = "Advanced"
+
+[[settings.field]]
+key = "redirection"
+label = "Redirect address"
+kind = "text"
+default = "http://127.0.0.1:8888/callback"
+help = "The one declared in the Spotify dashboard (Redirect URIs), exactly the same; the port must be free."
+
+# Données sensibles : saisies dans l'onglet, gardées dans .env (lisible par vous seul).
+[[secret]]
+name = "SPOTIFY_CLIENT_ID"
+label = "Client ID"
+description = "developer.spotify.com/dashboard → your application → Settings → Client ID"
+
+[[secret]]
+name = "SPOTIFY_CLIENT_SECRET"
+label = "Client secret"
+description = "Settings → \"View client secret\": share it with no one"
+hidden = true

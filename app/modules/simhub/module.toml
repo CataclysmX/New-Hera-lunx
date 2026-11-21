@@ -1,0 +1,148 @@
+# Module livré avec new hera-nux (docs/app/modules.md, docs/app/telemetrie.md) : à modifier
+# librement ici ; « Réinstaller les modules livrés » remet la version d'origine.
+name = "SimHub"
+description = "Dashboard of a racing game in the format SimHub reads: the \"SimHub compatible\" stream (Forza Data Out, UDP, port 8888) the game sends (Motor Town, Forza…), or the SimHub program itself. Rpm, gear, speed, pedals, fuel, tyres, race, LEDs as a rev counter. Same dashboard as the Motor Town module."
+file = "main.py"
+args = []
+
+[settings]
+file = "simhub.toml"
+editor = "formulaire"
+guide = """
+By default, the module itself receives what the game would send to SimHub: in the game, "SimHub compatible" or "Forza Data Out" telemetry output, address 127.0.0.1 (this computer), port 8888 (Motor Town: Options > Gameplay, Forza-compatible format). No need for the SimHub program.
+Source "programme SimHub": the SimHub program (Windows, or Wine / Proton) with its Dash Studio web server (port 8888); the module reads its values one by one, for all the games SimHub recognises.
+On the page: knob 1 (turn or click) goes from one screen to the next (Driving, Race, Vehicle).
+"""
+
+[[settings.field]]
+kind = "section"
+label = "Source"
+
+[[settings.field]]
+key = "source"
+label = "Source"
+kind = "choice"
+choices = ["flux du jeu", "programme SimHub"]
+choice_labels = ["game stream", "SimHub program"]
+default = "flux du jeu"
+help = "Game stream: the SimHub compatible format received over UDP. SimHub program: its web API."
+
+[[settings.field]]
+kind = "section"
+label = "Game stream (UDP)"
+
+[[settings.field]]
+key = "ecoute"
+label = "Listening IP"
+kind = "text"
+default = "0.0.0.0"
+help = "0.0.0.0: the game on this computer or another one of the network; 127.0.0.1: this computer only; or an address of this PC. In the game: 127.0.0.1, or the address of this PC on the network (shown on the waiting page)."
+
+[[settings.field]]
+key = "port"
+label = "Listening port"
+kind = "number"
+min = 1024
+max = 65535
+default = 8888
+help = "The destination port set in the game (UDP, 1024 to 65535)."
+
+[[settings.field]]
+key = "relais"
+kind = "list"
+label = "Relays"
+help = "Each packet received is sent again as it is to these addresses: the game sends to a single destination only; this way the SimHub program, another PC or another tool get it too."
+add = "+ Add a relay"
+
+  [[settings.field.field]]
+  key = "ip"
+  label = "IP"
+  kind = "text"
+  default = "127.0.0.1"
+  help = "127.0.0.1: a program of this computer; 192.168.x.y: another PC of the network."
+
+  [[settings.field.field]]
+  key = "port"
+  label = "Port"
+  kind = "number"
+  min = 1024
+  max = 65535
+  default = 9999
+
+[[settings.field]]
+kind = "section"
+label = "SimHub program (web API)"
+
+[[settings.field]]
+key = "ip_programme"
+label = "IP of the SimHub program"
+kind = "text"
+default = "127.0.0.1"
+help = "Source \"programme SimHub\": the computer where SimHub runs (IP address or name)."
+
+[[settings.field]]
+key = "port_programme"
+label = "Port of the SimHub program"
+kind = "number"
+min = 1
+max = 65535
+default = 8888
+help = "The port of its Dash Studio web server (TCP, 8888 by default)."
+
+[[settings.field]]
+key = "frequence"
+label = "Reads per second (program)"
+kind = "number"
+min = 2
+max = 30
+default = 10
+help = "Source \"programme SimHub\": speed, rpm, gear and pedals at each read; the rest one time in five."
+
+[[settings.field]]
+kind = "section"
+label = "Display"
+
+[[settings.field]]
+key = "leds_regime"
+label = "LEDs as a rev counter"
+kind = "bool"
+default = true
+help = "The 4 LEDs light up with the rpm (70 to 93 % of the maximum), blink at the limiter."
+
+[[settings.field]]
+key = "ecran_course"
+label = "Race screen at the start"
+kind = "bool"
+default = true
+
+[[settings.field]]
+key = "pilules.alertes"
+label = "Alerts"
+kind = "bool"
+default = true
+help = "Pills: low fuel."
+
+[[settings.field]]
+key = "pilules.course"
+label = "Laps"
+kind = "bool"
+default = true
+help = "Pills: time of each lap (best in purple)."
+
+[[settings.field]]
+key = "touche"
+kind = "list"
+label = "Page buttons"
+help = "Up to 4: button 1 sends the keys of the first line to the game, etc. The game must have the focus."
+add = "+ Add a button"
+
+  [[settings.field.field]]
+  key = "nom"
+  label = "Name shown"
+  kind = "text"
+
+  [[settings.field.field]]
+  key = "touches"
+  label = "Keys"
+  kind = "text"
+  help = "Like the \"keyboard shortcut\" action: \"p\", \"ctrl+l\"…"

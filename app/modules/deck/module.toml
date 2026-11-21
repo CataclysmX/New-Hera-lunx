@@ -1,0 +1,6 @@
+# Module livré avec new hera-nux (docs/app/modules.md) : à modifier librement ici ;
+# « Réinstaller les modules livrés » remet la version d'origine.
+name = "Shortcut menu"
+description = "Stream Deck-like menu (an example to copy and adapt): applications, media, clock, alert. Knob: rows; buttons: tiles of the highlighted row."
+file = "main.py"
+args = []

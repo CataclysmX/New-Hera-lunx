@@ -1,0 +1,127 @@
+# Cases du « Stream deck » : une piste par molette (la 1re pour la molette 1…, 4 au plus), ses
+# cases dans l'ordre du défilement (il reboucle sans fin). Le module se relance tout seul quand ce
+# fichier est enregistré. Il se règle aussi dans l'onglet « Stream deck » de la fenêtre (module
+# activé).
+#
+# Une case : title, subtitle (facultatif), icon (nom dans le thème d'icônes du bureau, ou chemin
+# d'une image), action — les mêmes que dans config.toml :
+#   { type = "media", action = "play_pause" }        play_pause, next, previous, stop
+#   { type = "command", cmd = "konsole" }            commande (sh -c)
+#   { type = "url", url = "https://…" }              ouvrir un lien ou un fichier
+#   { type = "keys", keys = "ctrl+alt+t" }           raccourci clavier (positions QWERTY)
+#   { type = "page", index = 1 }, { type = "back" }, { type = "brightness_up" }…
+
+# « colonnes » : la piste k au-dessus de la molette k ; « lignes » : une ligne par molette
+layout = "colonnes"
+
+[[track]]
+name = "Micro"
+color = "#00f0ff"
+
+[[track.tile]]
+title = "Muet"
+subtitle = "micro"
+icon = "microphone-sensitivity-muted"
+action = { type = "command", cmd = "pactl set-source-mute @DEFAULT_SOURCE@ toggle" }
+
+[[track.tile]]
+title = "Micro +5 %"
+subtitle = "plus fort"
+icon = "audio-input-microphone"
+action = { type = "command", cmd = "pactl set-source-volume @DEFAULT_SOURCE@ +5%" }
+
+[[track.tile]]
+title = "Micro −5 %"
+subtitle = "moins fort"
+icon = "microphone-sensitivity-low"
+action = { type = "command", cmd = "pactl set-source-volume @DEFAULT_SOURCE@ -5%" }
+
+[[track]]
+name = "Média"
+color = "#ffaa00"
+
+[[track.tile]]
+title = "Lecture"
+subtitle = "pause"
+icon = "media-playback-start"
+action = { type = "media", action = "play_pause" }
+
+[[track.tile]]
+title = "Suivant"
+subtitle = "titre suivant"
+icon = "media-skip-forward"
+action = { type = "media", action = "next" }
+
+[[track.tile]]
+title = "Précédent"
+subtitle = "titre précédent"
+icon = "media-skip-backward"
+action = { type = "media", action = "previous" }
+
+[[track.tile]]
+title = "Son +5 %"
+subtitle = "sortie"
+icon = "audio-volume-high"
+action = { type = "command", cmd = "pactl set-sink-volume @DEFAULT_SINK@ +5%" }
+
+[[track.tile]]
+title = "Son −5 %"
+subtitle = "sortie"
+icon = "audio-volume-low"
+action = { type = "command", cmd = "pactl set-sink-volume @DEFAULT_SINK@ -5%" }
+
+[[track]]
+name = "Applis"
+color = "#00ff88"
+
+[[track.tile]]
+title = "Terminal"
+subtitle = "konsole"
+icon = "utilities-terminal"
+action = { type = "command", cmd = "konsole" }
+
+[[track.tile]]
+title = "Fichiers"
+subtitle = "dolphin"
+icon = "system-file-manager"
+action = { type = "command", cmd = "dolphin" }
+
+[[track.tile]]
+title = "Navigateur"
+subtitle = "page d'accueil"
+icon = "internet-web-browser"
+action = { type = "url", url = "https://www.kde.org" }
+
+[[track.tile]]
+title = "Calculatrice"
+subtitle = "kcalc"
+icon = "accessories-calculator"
+action = { type = "command", cmd = "kcalc" }
+
+[[track]]
+name = "Écran"
+color = "#b026ff"
+
+[[track.tile]]
+title = "Capture"
+subtitle = "spectacle"
+icon = "spectacle"
+action = { type = "command", cmd = "spectacle" }
+
+[[track.tile]]
+title = "Luminosité +"
+subtitle = "Stream 100"
+icon = "brightness-high"
+action = { type = "brightness_up", step = 10 }
+
+[[track.tile]]
+title = "Luminosité −"
+subtitle = "Stream 100"
+icon = "brightness-low"
+action = { type = "brightness_down", step = 10 }
+
+[[track.tile]]
+title = "Retour"
+subtitle = "page d'avant"
+icon = "go-previous"
+action = { type = "back" }

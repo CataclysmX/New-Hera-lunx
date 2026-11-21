@@ -1,0 +1,5 @@
+# hsm01-app : raccourcis clavier (action `keys`) via un clavier virtuel uinput.
+# Donne /dev/uinput à l'utilisateur de la session active (uaccess). Attention : tout programme de
+# cette session peut alors simuler un clavier. Inutile si /dev/uinput est déjà accessible
+# (getfacl /dev/uinput), ce que font déjà certaines distributions.
+KERNEL=="uinput", SUBSYSTEM=="misc", TAG+="uaccess", OPTIONS+="static_node=uinput"

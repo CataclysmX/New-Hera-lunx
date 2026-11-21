@@ -1,0 +1,3 @@
+# Live scores: the filter (« Live scores » tab of the window). Empty lists: everything.
+# [[sport]] nom = "Football"   [[competition]] nom = "Ligue 1"   [[equipe]] nom = "Paris-SG"
+pilule_score = true

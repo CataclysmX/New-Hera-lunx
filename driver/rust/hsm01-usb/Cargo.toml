@@ -1,0 +1,10 @@
+[package]
+name = "hsm01-usb"
+description = "libusb transport for the Hercules Stream 100 (init, isochronous frames, interrupt reports)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+hsm01-proto = { path = "../hsm01-proto" }
+rusb = "0.9"

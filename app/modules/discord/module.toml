@@ -1,0 +1,115 @@
+# Module livré avec new hera-nux (docs/app/modules.md, docs/app/discord.md) : à modifier librement
+# ici ; « Réinstaller les modules livrés » remet la version d'origine (le .env reste).
+name = "Discord"
+description = "Mic, deafen, volumes, voice channel and its members (official Discord client) with your own Discord application: ID and secret in the \"Discord\" tab of the window (guide in the tab)."
+file = "main.py"
+args = []
+
+# Onglet « Discord » de la fenêtre (module activé) : un formulaire (champs ci-dessous) sur
+# discord.toml ; les listes de serveurs, salons et membres viennent du module connecté.
+[settings]
+file = "discord.toml"
+editor = "formulaire"
+guide = """
+First time: create YOUR Discord application at https://discord.com/developers/applications ("New Application", any name).
+In OAuth2 > Redirects, add a single address, http://localhost , then "Save Changes".
+Copy its Client ID and its Client Secret ("Reset Secret") below, then "Save the sensitive data": Discord asks you to authorize the application, and that's it.
+"""
+
+[[settings.field]]
+kind = "section"
+label = "Knobs"
+
+[[settings.field]]
+key = "pas"
+label = "Volume step"
+kind = "number"
+min = 1
+max = 20
+unit = "% per step"
+default = 2
+help = "Input 0-100 %, output and members 0-200 %."
+
+[[settings.field]]
+key = "salon"
+kind = "list"
+label = "Favourite channels"
+help = "A \"Join / leave\" command for each one (Controls tab); the list of the Discord page when you are in no channel."
+add = "+ Add a channel"
+
+  [[settings.field.field]]
+  key = "serveur"
+  label = "Server"
+  kind = "choice"
+  source = "serveurs"
+
+  [[settings.field.field]]
+  key = "salon"
+  label = "Voice channel"
+  kind = "choice"
+  source = "salons:{serveur}"
+
+[[settings.field]]
+key = "membre"
+kind = "list"
+label = "Followed members"
+help = "Knob \"Volume of …\" and button \"Mute …\" (for you only); with a level, button \"… at N %\"."
+add = "+ Add a member"
+
+  [[settings.field.field]]
+  key = "nom"
+  label = "Member"
+  kind = "choice"
+  source = "membres"
+  help = "The members met in your voice channels"
+
+  [[settings.field.field]]
+  key = "niveau"
+  label = "Button \"at N %\""
+  kind = "number"
+  min = 0
+  max = 200
+  unit = "%"
+  optional = true
+  default = 50
+
+[[settings.field]]
+kind = "section"
+label = "Pills"
+
+[[settings.field]]
+key = "pilule_arrivee"
+label = "Someone joins my channel"
+kind = "bool"
+default = true
+help = "Green band at the bottom of the screen: \"NAME JOINED THE CHANNEL\""
+
+[[settings.field]]
+key = "pilule_depart"
+label = "Someone leaves my channel"
+kind = "bool"
+default = false
+help = "Grey band: \"NAME LEFT THE CHANNEL\""
+
+[[settings.field]]
+kind = "section"
+label = "Advanced"
+
+[[settings.field]]
+key = "redirection"
+label = "Redirect address"
+kind = "text"
+default = "http://localhost"
+help = "The one declared in the Discord portal (OAuth2 > Redirects), exactly the same."
+
+# Données sensibles : saisies dans l'onglet, gardées dans .env (lisible par vous seul).
+[[secret]]
+name = "DISCORD_CLIENT_ID"
+label = "Application ID"
+description = "discord.com/developers/applications → your application → OAuth2 → Client ID (a number)"
+
+[[secret]]
+name = "DISCORD_CLIENT_SECRET"
+label = "Application secret"
+description = "OAuth2 → Client Secret (\"Reset Secret\" to get one): share it with no one"
+hidden = true

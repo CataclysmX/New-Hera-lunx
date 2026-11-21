@@ -1,0 +1,56 @@
+# Module Système : réglages (Enregistrer relance le module).
+#
+# Sondes de température : "auto", ou une sonde précise « puce/étiquette » telle que le Journal du
+# module les liste au démarrage (ex. "k10temp/Tctl", "coretemp/Package id 0", "amdgpu/edge",
+# "amdgpu/junction", "nvme/Composite", "nvidia-smi").
+# auto : processeur = Tctl (AMD) / Package id 0 (Intel) ; carte graphique = edge (AMD : pas
+# « junction », le point le plus chaud de la puce, normalement 90-105 °C en jeu) ou nvidia-smi ;
+# SSD = Composite.
+
+[page]
+afficher = true      # false : alertes seulement, sans page
+# lignes, dans l'ordre (6 au plus) : processeur, memoire, gpu, ssd, disques, batteries
+lignes = ["processeur", "memoire", "gpu", "ssd", "disques", "batteries"]
+
+[alertes]
+style = "carte"      # "carte" (en haut, avec icône) ou "pilule" (bandeau court en bas)
+duree = 10           # secondes à l'écran
+led = 4              # LED qui clignote pendant l'alerte (1 à 4 ; 0 : aucune)
+reveil = true        # rallumer l'écran en veille pour une alerte
+
+# Températures : alerte quand la sonde reste au moins `pendant` secondes à `seuil` °C ou plus
+# (les pics brefs sont ignorés), à nouveau seulement après être redescendue de `retour` °C sous
+# le seuil ; `rappel` : minutes avant de rappeler si elle y reste (0 : une seule fois).
+[alertes.processeur]
+actif = true
+sonde = "auto"
+seuil = 90
+pendant = 20
+retour = 5
+rappel = 0
+
+[alertes.gpu]
+actif = true
+sonde = "auto"
+seuil = 90
+pendant = 20
+retour = 5
+rappel = 0
+
+[alertes.ssd]
+actif = true
+sonde = "auto"
+seuil = 75
+pendant = 60
+retour = 5
+rappel = 0
+
+[alertes.disque]
+actif = true
+seuil = 95           # % utilisé
+ignorer = []         # points de montage, ex. ["/boot/efi"]
+
+[alertes.batterie]
+actif = true
+seuil = 15           # % (pas en charge)
+ignorer = []         # noms des périphériques, tels qu'affichés sur la page

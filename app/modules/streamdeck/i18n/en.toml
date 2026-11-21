@@ -1,0 +1,11 @@
+# English texts of this module (hsm01/i18n.py): "text of the code" = "text shown", same
+# {placeholders}. Change a value to reword the English; copy this file to <code>.toml
+# to start another language. Written by tools/i18n_check.py en --fill.
+name = "English"
+
+[text]
+"4 endless tracks of tiles, one per knob: turning chooses, clicking runs. Layout, tracks and tiles: \"Stream deck\" tab of the window (module switched on), or deck.toml in this folder." = "4 endless tracks of tiles, one per knob: turning chooses, clicking runs. Layout, tracks and tiles: \"Stream deck\" tab of the window (module switched on), or deck.toml in this folder."
+"Knob {n}" = "Knob {n}"
+"Stream deck" = "Stream deck"
+"tile \"{title}\" ({widget})" = "tile \"{title}\" ({widget})"
+"{tracks} tracks, {tiles} tiles, layout {layout}" = "{tracks} tracks, {tiles} tiles, layout {layout}"

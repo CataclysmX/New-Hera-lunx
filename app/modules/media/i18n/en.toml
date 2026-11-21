@@ -1,0 +1,14 @@
+# English texts of this module (hsm01/i18n.py): "text of the code" = "text shown", same
+# {placeholders}. Change a value to reword the English; copy this file to <code>.toml
+# to start another language. Written by tools/i18n_check.py en --fill.
+name = "English"
+
+[text]
+"\"Media\" page: cover, title, artist, progress of the player that plays (Spotify, browser, VLC…). Buttons 1-2-3: previous, play / pause, next; knob 1: back / forward; knob 4: player volume. Options: --alert (alert at each track), --show (page shown at start)." = "\"Media\" page: cover, title, artist, progress of the player that plays (Spotify, browser, VLC…). Buttons 1-2-3: previous, play / pause, next; knob 1: back / forward; knob 4: player volume. Options: --alert (alert at each track), --show (page shown at start)."
+"cover: {e}" = "cover: {e}"
+"Media" = "Media"
+"Media player" = "Media player"
+"Media · no player" = "Media · no player"
+"paused" = "paused"
+"playing" = "playing"
+"stopped" = "stopped"

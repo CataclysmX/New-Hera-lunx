@@ -1,0 +1,12 @@
+# French texts of this module (hsm01/i18n.py): "English" = "French", same {placeholders}.
+name = "Français"
+
+[text]
+"\"Media\" page: cover, title, artist, progress of the player that plays (Spotify, browser, VLC…). Buttons 1-2-3: previous, play / pause, next; knob 1: back / forward; knob 4: player volume. Options: --alert (alert at each track), --show (page shown at start)." = "Page « Média » : pochette, titre, artiste, avancement du lecteur qui joue (Spotify, navigateur, VLC…). Boutons 1-2-3 : précédent, lecture / pause, suivant ; molette 1 : reculer / avancer ; molette 4 : volume du lecteur. Options : --alert (alerte à chaque morceau), --show (page affichée au démarrage)."
+"cover: {e}" = "pochette : {e}"
+"Media" = "Média"
+"Media player" = "Lecteur média"
+"Media · no player" = "Média · aucun lecteur"
+"paused" = "pause"
+"playing" = "lecture"
+"stopped" = "arrêt"

@@ -1,0 +1,71 @@
+# Module shipped with new hera-nux (docs/app/modules.md, docs/app/scores.md): change it freely here;
+# « Reinstall the shipped modules » puts the original back. Its texts in French: i18n/fr.toml.
+name = "Live scores"
+description = "Matches under way from L'Équipe's live feed (football, rugby, basketball…), by sport: a page and a widget, a pill when a score changes. Filter (sports, competitions, teams): « Live scores » tab of the window. Asks the feed once a minute while a match of the filter is under way, otherwise every 5 minutes."
+file = "main.py"
+args = []
+
+[settings]
+file = "scores.toml"
+editor = "formulaire"
+guide = """
+Only the matches under way are shown, grouped by sport and competition. Empty lists: everything.
+The feed is asked once a minute while a match of your filter is under way, otherwise every 5 minutes; a click of knob 1 on the page asks at once.
+Data: L'Équipe (https://www.lequipe.fr/directs), for your own use.
+"""
+
+[[settings.field]]
+kind = "section"
+label = "Filter"
+
+[[settings.field]]
+key = "sport"
+kind = "list"
+label = "Sports"
+help = "Only these sports (none: all of them)."
+add = "+ Add a sport"
+
+  [[settings.field.field]]
+  key = "nom"
+  label = "Sport"
+  kind = "choice"
+  source = "sports"
+  help = "The sports met in the feed (module running)"
+
+[[settings.field]]
+key = "competition"
+kind = "list"
+label = "Competitions"
+help = "Only these competitions (none: all of them); part of the name is enough."
+add = "+ Add a competition"
+
+  [[settings.field.field]]
+  key = "nom"
+  label = "Competition"
+  kind = "choice"
+  source = "competitions"
+
+[[settings.field]]
+key = "equipe"
+kind = "list"
+label = "Teams"
+help = "Only the matches of these teams (none: all of them); part of the name is enough, any case."
+add = "+ Add a team"
+
+  [[settings.field.field]]
+  key = "nom"
+  label = "Team"
+  kind = "choice"
+  source = "equipes"
+  help = "The teams met in the feed, today's and upcoming matches (module running)"
+
+[[settings.field]]
+kind = "section"
+label = "Pills"
+
+[[settings.field]]
+key = "pilule_score"
+label = "Score changes"
+kind = "bool"
+default = true
+help = "Short band at the bottom of the screen: « NICE 1-0 PARIS-SG »"

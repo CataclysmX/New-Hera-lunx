@@ -1,0 +1,14 @@
+# English texts of this module (hsm01/i18n.py): "text of the code" = "text shown", same
+# {placeholders}. Change a value to reword the English; copy this file to <code>.toml
+# to start another language.
+name = "English"
+
+[text]
+"Counter" = "Counter"
+"Counter {n}" = "Counter {n}"
+"knob 1: count · button 1: alert" = "knob 1: count · button 1: alert"
+"My module" = "My module"
+"My module: a page, knob 1 counts, button 1 sends an alert." = "My module: a page, knob 1 counts, button 1 sends an alert."
+"Reset" = "Reset"
+"the counter starts again from 0" = "the counter starts again from 0"
+"The counter is {n}" = "The counter is {n}"

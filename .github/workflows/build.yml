@@ -1,0 +1,215 @@
+name: build
+
+# Build and test the custom firmware and the companion app (new hera-nux) on every push/PR
+# touching them; publish a GitHub release when a tag is pushed:
+#   `fw-vX.Y.Z`  → the firmware image (hsm01-fw.bin, for dfu-util);
+#   `app-vX.Y.Z` → the app for Linux x86_64 and aarch64 (hsm01-app, hsm01ctl, shipped modules,
+#                  Python library, udev rule).
+on:
+  push:
+    branches: [main]
+    tags: ["fw-v*", "app-v*"]
+    paths:
+      - "firmware/**"
+      - "app/**"
+      - "driver/rust/**"
+      - "public/**"
+      - "tools/**"
+      - "packaging/**"
+      - ".github/workflows/build.yml"
+  pull_request:
+    paths:
+      - "firmware/**"
+      - "app/**"
+      - "driver/rust/**"
+      - "public/**"
+      - "tools/**"
+      - "packaging/**"
+      - ".github/workflows/build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  firmware:
+    name: firmware (STM32L4R7)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: thumbv7em-none-eabihf
+          components: llvm-tools
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            firmware/rust
+            firmware/proto-tests
+
+      # host tests of the command-stream parser (src/proto.rs)
+      - name: Test the parser
+        working-directory: firmware/proto-tests
+        run: cargo test
+
+      # build.rs converts the newest public/bootlogo* into the boot logo and its animation
+      - name: Build
+        working-directory: firmware/rust
+        run: cargo build --release --locked
+
+      - name: Image and safety checks
+        id: image
+        shell: bash
+        run: |
+          elf=firmware/rust/target/thumbv7em-none-eabihf/release/hsm01-fw
+          host="$(rustc -vV | sed -n 's/^host: //p')"
+          objcopy="$(rustc --print sysroot)/lib/rustlib/$host/bin/llvm-objcopy"
+          # the DFU recovery hatch runs first, the last flash page (serial number) is untouched
+          python3 -I tools/re/fw_hatch_check.py "$elf"
+          version="${GITHUB_REF_NAME#fw-v}"
+          [[ "$GITHUB_REF" == refs/tags/fw-v* ]] || version="dev-${GITHUB_SHA::7}"
+          name="hsm01-fw-${version}"
+          mkdir -p dist
+          "$objcopy" -O binary "$elf" "dist/$name.bin"
+          (cd dist && sha256sum "$name.bin" > "$name.bin.sha256")
+          ls -l dist
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.image.outputs.name }}
+          path: dist/*
+
+  app:
+    name: app (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            end_to_end: true
+          # ARM64 runners are free for public repositories only.
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            end_to_end: false
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      # libusb (device), libpulse (PipeWire through the PulseAudio API); fonts for the tests
+      # that draw pages
+      - name: Install libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends pkg-config libusb-1.0-0-dev \
+            libpulse-dev fonts-dejavu-core
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app
+
+      - name: Clippy
+        run: cargo clippy --locked -- -D warnings
+
+      # unit tests, the French file of the app included (i18n::tests::french_is_complete)
+      - name: Test
+        run: cargo test --release --locked
+
+      # the translation files of the shipped modules, of the Python library and of the template
+      - name: Translations of the modules
+        working-directory: .
+        run: |
+          python3 -I tools/i18n_check.py fr
+          python3 -I tools/i18n_check.py en
+
+      # the shipped modules run against fake servers (Discord, Spotify, OBS, games, live
+      # scores): Python 3 of the runner, no device needed
+      - name: End-to-end tests of the modules
+        if: matrix.end_to_end
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: >
+          cargo test --release --locked -- --ignored --test-threads=1
+          against shipped_modules_run python_menu_end_to_end
+
+      - name: Build release
+        run: cargo build --release --locked
+
+      # hsm01-app finds modules/ and clients/python/ next to itself
+      - name: Package
+        id: pkg
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#app-v}"
+          [[ "$GITHUB_REF" == refs/tags/app-v* ]] || version="dev-${GITHUB_SHA::7}"
+          name="new-hera-nux-${version}-${{ matrix.target }}"
+          d="dist/$name"
+          mkdir -p "$d/clients"
+          cp target/release/hsm01-app target/release/hsm01ctl "$d/"
+          cp -r modules "$d/modules"
+          cp -r clients/python "$d/clients/python"
+          find "$d" -name __pycache__ -type d -prune -exec rm -rf {} +
+          cp ../packaging/udev/70-hercules-stream100.rules "$d/"
+          cp ../README.md "$d/README.md"
+          tar -C dist -czf "dist/$name.tar.gz" "$name"
+          (cd dist && sha256sum "$name.tar.gz" > "$name.tar.gz.sha256")
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.pkg.outputs.name }}
+          path: |
+            app/dist/*.tar.gz
+            app/dist/*.sha256
+
+  release-firmware:
+    needs: firmware
+    if: startsWith(github.ref, 'refs/tags/fw-v')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: hsm01-fw-*
+          path: dist
+          merge-multiple: true
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: hsm01 firmware ${{ github.ref_name }}
+          files: dist/*
+          generate_release_notes: true
+
+  release-app:
+    needs: app
+    if: startsWith(github.ref, 'refs/tags/app-v')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: new-hera-nux-*
+          path: dist
+          merge-multiple: true
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: new hera-nux ${{ github.ref_name }}
+          files: dist/*
+          generate_release_notes: true

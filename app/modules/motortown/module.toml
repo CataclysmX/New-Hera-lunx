@@ -1,0 +1,107 @@
+# Module livré avec new hera-nux (docs/app/modules.md, docs/app/telemetrie.md) : à modifier
+# librement ici ; « Réinstaller les modules livrés » remet la version d'origine.
+name = "Motor Town"
+description = "Motor Town dashboard (the game's telemetry): rpm, gear, speed, pedals, fuel, temperature, speed limiter, warning lights, Race screen (position, laps, times) and Vehicle screen (tyres, brakes, engine, weight), LEDs as a rev counter, pills (overheating, low fuel, wrong way, laps)."
+file = "main.py"
+args = []
+
+[settings]
+file = "motortown.toml"
+editor = "formulaire"
+guide = """
+In the game: Options > Gameplay > "Enable Telemetry Output", format "Motor Town v1", address 127.0.0.1 (this computer; 0.0.0.0 is not a destination address), port 33330. The settings apply without restarting the game.
+Telemetry is only sent while driving (on foot or as a passenger, the page waits). The Forza-compatible format works too, with fewer values.
+On the page: knob 1 (turn or click) goes from one screen to the next (Driving, Race, Vehicle). Game documentation: Documentation/Telemetry/MotorTownTelemetryProtocol.md in its folder.
+"""
+
+[[settings.field]]
+kind = "section"
+label = "Display"
+
+[[settings.field]]
+key = "leds_regime"
+label = "LEDs as a rev counter"
+kind = "bool"
+default = true
+help = "The 4 LEDs light up with the rpm (70 to 93 % of the maximum), blink at the limiter."
+
+[[settings.field]]
+key = "ecran_course"
+label = "Race screen at the start"
+kind = "bool"
+default = true
+help = "Switches to the Race screen when a race, a time trial or an autocross starts."
+
+[[settings.field]]
+key = "pilules.alertes"
+label = "Alerts"
+kind = "bool"
+default = true
+help = "Pills: engine overheating, low fuel, wrong way."
+
+[[settings.field]]
+key = "pilules.course"
+label = "Laps and finish"
+kind = "bool"
+default = true
+help = "Pills: time of each lap (best in purple), finish, disqualification."
+
+[[settings.field]]
+key = "touche"
+kind = "list"
+label = "Page buttons"
+help = "Up to 4: button 1 sends the keys of the first line to the game, etc. (like the \"keyboard shortcut\" action: \"h\", \"ctrl+l\"…). The game must have the focus."
+add = "+ Add a button"
+
+  [[settings.field.field]]
+  key = "nom"
+  label = "Name shown"
+  kind = "text"
+
+  [[settings.field.field]]
+  key = "touches"
+  label = "Keys"
+  kind = "text"
+  help = "Like the \"keyboard shortcut\" action: \"h\", \"shift+c\"…"
+
+[[settings.field]]
+kind = "section"
+label = "Reception"
+
+[[settings.field]]
+key = "ecoute"
+label = "Listening IP"
+kind = "text"
+default = "0.0.0.0"
+help = "0.0.0.0: all (the game on this computer or another one of the network); 127.0.0.1: this computer only; or an address of this PC. In the game, \"Telemetry Target Address\": 127.0.0.1, or the address of this PC on the network (shown on the waiting page)."
+
+[[settings.field]]
+key = "port"
+label = "Listening port"
+kind = "number"
+min = 1024
+max = 65535
+default = 33330
+help = "The same as \"Telemetry Port\" in the game (UDP, 1024 to 65535)."
+
+[[settings.field]]
+key = "relais"
+kind = "list"
+label = "Relays"
+help = "Each packet received is sent again as it is to these addresses: the game sends to a single destination only; this way the SimHub program, another PC or another tool get it too."
+add = "+ Add a relay"
+
+  [[settings.field.field]]
+  key = "ip"
+  label = "IP"
+  kind = "text"
+  default = "127.0.0.1"
+  help = "127.0.0.1: a program of this computer; 192.168.x.y: another PC of the network."
+
+  [[settings.field.field]]
+  key = "port"
+  label = "Port"
+  kind = "number"
+  min = 1024
+  max = 65535
+  default = 9999

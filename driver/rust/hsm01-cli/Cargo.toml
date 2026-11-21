@@ -1,0 +1,15 @@
+[package]
+name = "hsm01-cli"
+description = "Command-line tool for the Hercules Stream 100 (info, monitor, demo, brightness, leds)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "hsm01"
+path = "src/main.rs"
+
+[dependencies]
+hsm01-proto = { path = "../hsm01-proto" }
+hsm01-usb = { path = "../hsm01-usb" }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "bmp", "gif"] }

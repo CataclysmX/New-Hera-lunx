@@ -1,0 +1,31 @@
+[package]
+name = "hsm01-app"
+description = "Companion app for the Hercules Stream 100 running the custom firmware (free screen)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+hsm01-proto = { path = "../../driver/rust/hsm01-proto" }
+hsm01-usb = { path = "../../driver/rust/hsm01-usb" }
+serde = { version = "1", features = ["derive"] }
+toml = "0.9"
+serde_json = "1"
+tungstenite = { version = "0.30", default-features = false, features = ["handshake"] }
+tiny-skia = { version = "0.12", default-features = false, features = ["std", "simd", "png-format"] }
+fontdue = "0.9"
+# already in the tree (resvg): colour emoji, the PNG of each glyph (CBDT, sbix)
+ttf-parser = "0.25"
+libpulse-binding = "2.30"
+rustfft = "6"
+evdev = "0.13"
+eframe = { version = "0.37", default-features = false, features = ["default_fonts", "glow", "wayland", "x11", "clipboard"] }
+ksni = { version = "0.3", default-features = false, features = ["blocking", "async-io"] }
+toml_edit = "0.25"
+resvg = { version = "0.50", default-features = false }
+zbus = { version = "5", default-features = false, features = ["async-io", "blocking-api"] }
+image = { version = "0.25", default-features = false, features = ["gif", "jpeg", "png", "webp", "ico"] }
+rfd = "0.18"
+# already in the tree (zbus): quit cleanly on SIGTERM / SIGINT / SIGHUP
+signal-hook-registry = "1.4"
+libc = "0.2"

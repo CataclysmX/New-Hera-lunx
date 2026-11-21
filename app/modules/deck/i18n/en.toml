@@ -1,0 +1,27 @@
+# English texts of this module (hsm01/i18n.py): "text of the code" = "text shown", same
+# {placeholders}. Change a value to reword the English; copy this file to <code>.toml
+# to start another language. Written by tools/i18n_check.py en --fill.
+name = "English"
+
+[text]
+"A tile with a gradient" = "A tile with a gradient"
+"Alert" = "Alert"
+"Browser" = "Browser"
+"Calculator" = "Calculator"
+"Editor" = "Editor"
+"error:" = "error:"
+"Files" = "Files"
+"Hello" = "Hello"
+"Media" = "Media"
+"Next" = "Next"
+"Not found" = "Not found"
+"Play" = "Play"
+"Previous" = "Previous"
+"Red" = "Red"
+"Screenshot" = "Screenshot"
+"Sent by the example menu" = "Sent by the example menu"
+"Settings" = "Settings"
+"Shortcut menu" = "Shortcut menu"
+"Stream Deck-like menu (an example to copy and adapt): applications, media, clock, alert. Knob: rows; buttons: tiles of the highlighted row." = "Stream Deck-like menu (an example to copy and adapt): applications, media, clock, alert. Knob: rows; buttons: tiles of the highlighted row."
+"Time" = "Time"
+"{program} is not installed" = "{program} is not installed"

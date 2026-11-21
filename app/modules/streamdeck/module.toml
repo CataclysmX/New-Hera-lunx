@@ -1,0 +1,12 @@
+# Module livré avec new hera-nux (docs/app/modules.md) : à modifier librement ici ;
+# « Réinstaller les modules livrés » remet la version d'origine.
+name = "Stream deck"
+description = "4 endless tracks of tiles, one per knob: turning chooses, clicking runs. Layout, tracks and tiles: \"Stream deck\" tab of the window (module switched on), or deck.toml in this folder."
+file = "main.py"
+args = []
+
+# Fichier de réglages : quand le module est activé, la fenêtre lui ouvre un onglet ; editor =
+# "deck" (éditeur de pistes et de cases) ou "texte" (le fichier TOML, vérifié avant d'enregistrer).
+[settings]
+file = "deck.toml"
+editor = "deck"
