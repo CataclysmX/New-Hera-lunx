@@ -71,6 +71,10 @@ pub struct Shared {
     pub api: crate::api::Hub,
     /// Programs run by the app (`tools.rs`): name → status.
     pub tools: crate::tools::Statuses,
+    /// « Load only when shown » (`tools.rs`): the modules wanted, until when (name → instant):
+    /// needed by the screen (set by the engine at each frame), asked for by an action or the
+    /// modules menu (time to start), or by the window (its lists of commands and widgets).
+    pub wanted: Mutex<HashMap<String, Instant>>,
     /// Media player followed (`media.rs`).
     pub media: Mutex<Option<crate::media::MediaState>>,
 }
@@ -92,8 +96,48 @@ impl Shared {
             notifications: Mutex::new(VecDeque::new()),
             api: Default::default(),
             tools: Default::default(),
+            wanted: Mutex::new(HashMap::new()),
             media: Mutex::new(None),
         }
+    }
+
+    /// Module `name` wanted for `time` from now at least (« Load only when shown »).
+    pub fn want(&self, name: &str, time: Duration) {
+        let until = Instant::now() + time;
+        let mut wanted = self.wanted.lock().unwrap();
+        match wanted.get_mut(name) {
+            Some(u) => *u = (*u).max(until),
+            None => {
+                wanted.insert(name.to_owned(), until);
+            }
+        }
+    }
+
+    /// Every module switched on with « Load only when shown » wanted for `time` (the window's
+    /// lists of their commands and widgets).
+    pub fn want_all(&self, time: Duration) {
+        let names: Vec<String> = self.config.read().unwrap().tools.iter()
+            .filter(|t| t.enabled && t.pause_hidden)
+            .map(|t| t.name.clone())
+            .collect();
+        for name in names {
+            self.want(&name, time);
+        }
+    }
+
+    /// No longer wanted by what asked (`want`): what still needs it asks again (the screen at
+    /// each frame).
+    pub fn unwant(&self, name: &str) {
+        self.wanted.lock().unwrap().remove(name);
+    }
+
+    pub fn is_wanted(&self, name: &str) -> bool {
+        self.wanted.lock().unwrap().get(name).is_some_and(|u| *u > Instant::now())
+    }
+
+    /// Whether `name` is a module switched on with « Load only when shown » (it may not run yet).
+    pub fn loads_when_shown(&self, name: &str) -> bool {
+        self.config.read().unwrap().tools.iter().any(|t| t.enabled && t.pause_hidden && t.name == name)
     }
 
     pub fn set_message(&self, msg: impl Into<String>) {
@@ -181,6 +225,10 @@ struct Engine {
     last_cfg: usize,
     /// The modules menu, while it is open (or sliding out).
     menu: Option<ModuleMenu>,
+    /// « Load only when shown »: the module being loaded whose page to show when it comes, and
+    /// the commands asked of modules being loaded (`loading_tick`).
+    pending_show: Option<(String, Instant)>,
+    pending_commands: Vec<(Instant, String, String)>,
 }
 
 /// The modules menu slides in, out, and closes by itself after a while without input.
@@ -236,8 +284,9 @@ impl ModuleMenu {
     }
 }
 
-/// The modules that have a page (their first one), by name.
-fn menu_entries(api: &crate::api::Hub, pages: &[ClientPage]) -> Vec<MenuEntry> {
+/// The modules that have a page (their first one), by name; then the modules « Load only when
+/// shown » not loaded (`lazy`, owner 0: started when chosen).
+fn menu_entries(api: &crate::api::Hub, pages: &[ClientPage], lazy: &[String]) -> Vec<MenuEntry> {
     let mut out: Vec<MenuEntry> = Vec::new();
     for p in pages.iter().filter(|p| p.size.is_none()) {
         if out.iter().any(|e| e.owner == p.owner) {
@@ -249,6 +298,16 @@ fn menu_entries(api: &crate::api::Hub, pages: &[ClientPage]) -> Vec<MenuEntry> {
             name: api.client_name(p.owner).unwrap_or_else(|| p.id.clone()),
             title: p.page.name.clone(),
         });
+    }
+    for name in lazy {
+        if !out.iter().any(|e| &e.name == name) {
+            out.push(MenuEntry {
+                owner: 0,
+                page: String::new(),
+                name: name.clone(),
+                title: tr("not loaded").into(),
+            });
+        }
     }
     out.sort_by_key(|e| e.name.to_lowercase());
     out
@@ -654,6 +713,7 @@ pub fn run(shared: Arc<Shared>, make_audio: impl FnOnce() -> Box<dyn Audio>) {
             prev_cfg = cfg.clone();
         }
         // pages of the API clients come after the configuration's
+        e.loading_tick();
         let show = shared.api.show.lock().unwrap().take();
         let find = |pages: &[ClientPage], (owner, id): &(u64, String)| {
             pages.iter().position(|p| p.owner == *owner && p.id == *id)
@@ -734,6 +794,15 @@ pub fn run(shared: Arc<Shared>, make_audio: impl FnOnce() -> Box<dyn Audio>) {
         // starts again when it goes
         let mut on_screen: Vec<String> = e.shown_tool.iter().map(|(name, _)| name.clone()).collect();
         on_screen.extend(embeds.iter().filter_map(|em| shared.api.client_name(em.page.owner)));
+        // « Load only when shown »: the modules the screen needs now (started if they do not run)
+        if let Some((name, _)) = &e.shown_tool {
+            shared.want(name, WANT_FRAME);
+        }
+        if client.is_none() {
+            for name in modules_needed(page) {
+                shared.want(name, WANT_FRAME);
+            }
+        }
         if kept_awake(&cfg, &on_screen) {
             e.last_activity = Instant::now();
         }
@@ -1002,6 +1071,8 @@ impl Engine {
             n_cfg: 0,
             last_cfg: 0,
             menu: None,
+            pending_show: None,
+            pending_commands: Vec::new(),
         }
     }
 
@@ -1251,7 +1322,11 @@ impl Engine {
             return;
         };
         let first = m.entries.is_empty();
-        m.entries = menu_entries(&self.shared.api, pages);
+        let lazy: Vec<String> = self.shared.config.read().unwrap().tools.iter()
+            .filter(|t| t.enabled && t.pause_hidden)
+            .map(|t| t.name.clone())
+            .collect();
+        m.entries = menu_entries(&self.shared.api, pages, &lazy);
         if first && let Some((owner, _)) = shown {
             m.selected = m.entries.iter().position(|e| e.owner == *owner).unwrap_or(0);
         }
@@ -1285,11 +1360,65 @@ impl Engine {
         let chosen = (pressed & 1 != 0)
             .then(|| m.entries.get(m.selected))
             .flatten()
-            .map(|e| (e.owner, e.page.clone()));
+            .map(|e| (e.owner, e.page.clone(), e.name.clone()));
         m.closing = Some(Instant::now());
-        if let Some(show) = chosen {
-            self.jump_from = Some(page_idx);
-            *self.shared.api.show.lock().unwrap() = Some(show);
+        match chosen {
+            Some((0, _, name)) => self.open_module(&name, page_idx),
+            Some((owner, page, _)) => {
+                self.jump_from = Some(page_idx);
+                *self.shared.api.show.lock().unwrap() = Some((owner, page));
+            }
+            None => {}
+        }
+    }
+
+    /// Show the page of module `name`; « Load only when shown » and not loaded, it is started and
+    /// its page shown once it comes (`pending_show`, `LOAD_WAIT` at most).
+    fn open_module(&mut self, name: &str, page_idx: usize) {
+        match self.shared.api.page_of_tool(name, "") {
+            Some(shown) => {
+                self.pending_show = None;
+                self.jump_from = Some(page_idx);
+                *self.shared.api.show.lock().unwrap() = Some(shown);
+            }
+            None if self.shared.loads_when_shown(name) => {
+                self.shared.want(name, LOAD_WAIT);
+                self.pending_show = Some((name.to_owned(), Instant::now()));
+                self.jump_from = Some(page_idx);
+                self.shared.set_message(tf!("module \"{name}\": loading…", name = name));
+            }
+            None => self.shared.set_message(tf!("module \"{name}\": no page (stopped, or still starting?)", name = name)),
+        }
+    }
+
+    /// The page of a module being loaded, shown when it comes; the commands asked of a module
+    /// being loaded, run once it offers them (`LOAD_WAIT` at most).
+    fn loading_tick(&mut self) {
+        if let Some((name, since)) = &self.pending_show {
+            if let Some(shown) = self.shared.api.page_of_tool(name, "") {
+                *self.shared.api.show.lock().unwrap() = Some(shown);
+                self.shared.unwant(name); // shown: the screen wants it from now on
+                self.pending_show = None;
+            } else if since.elapsed() > LOAD_WAIT {
+                self.shared.set_message(tf!("module \"{name}\": no page (stopped, or still starting?)", name = name));
+                self.pending_show = None;
+            }
+        }
+        let shared = &self.shared;
+        let mut late = Vec::new();
+        self.pending_commands.retain(|(since, tool, command)| {
+            if shared.api.run_command(tool, command, None) {
+                shared.unwant(tool); // it got it: running a few seconds more, as after a command
+                return false;
+            }
+            if since.elapsed() > LOAD_WAIT {
+                late.push((tool.clone(), command.clone()));
+                return false;
+            }
+            true
+        });
+        for (tool, command) in late {
+            self.shared.set_message(tf!("module \"{tool}\": command \"{command}\" unavailable (module stopped?)", tool = tool, command = command));
         }
     }
 
@@ -1586,6 +1715,9 @@ impl Engine {
         // the configuration's pages: the ones next / previous / go to / back cycle through
         let n_cfg = self.n_cfg.clamp(1, n);
         let from = if page_idx < n_cfg { page_idx } else { self.last_cfg.min(n_cfg - 1) };
+        if matches!(a, Action::NextPage | Action::PrevPage | Action::Page { .. } | Action::Back) {
+            self.pending_show = None; // another page chosen meanwhile
+        }
         match a {
             Action::None => {}
             Action::ModuleMenu => {
@@ -1627,16 +1759,16 @@ impl Engine {
                     .page
                     .store(index.saturating_sub(1).min(n_cfg - 1), Ordering::Relaxed);
             }
-            Action::Tool { name } => match self.shared.api.page_of_tool(name, "") {
-                Some(shown) => {
-                    self.jump_from = Some(page_idx);
-                    *self.shared.api.show.lock().unwrap() = Some(shown);
-                }
-                None => self.shared.set_message(tf!("module \"{name}\": no page (stopped, or still starting?)", name = name)),
-            },
+            Action::Tool { name } => self.open_module(name, page_idx),
             Action::ToolCommand { tool, command } => {
                 if !self.shared.api.run_command(tool, command, None) {
-                    self.shared.set_message(tf!("module \"{tool}\": command \"{command}\" unavailable (module stopped?)", tool = tool, command = command));
+                    if self.shared.loads_when_shown(tool) {
+                        // not loaded yet: run once it offers it
+                        self.shared.want(tool, LOAD_WAIT);
+                        self.pending_commands.push((Instant::now(), tool.clone(), command.clone()));
+                    } else {
+                        self.shared.set_message(tf!("module \"{tool}\": command \"{command}\" unavailable (module stopped?)", tool = tool, command = command));
+                    }
                 }
             }
             Action::Media { action } => {
@@ -1759,6 +1891,47 @@ fn clip_to_screen(x: i32, y: i32, w: i32, h: i32) -> Option<(u16, u16, u16, u16)
     let (x0, y0) = (x.max(0), y.max(0));
     let (x1, y1) = ((x + w).min(SCREEN_W), (y + h).min(SCREEN_H));
     (x1 > x0 && y1 > y0).then(|| (x0 as u16, y0 as u16, (x1 - x0) as u16, (y1 - y0) as u16))
+}
+
+/// « Load only when shown »: a module the screen needs is wanted this long after each frame;
+/// one asked for (an action, the modules menu) has this long to start and come with its page.
+const WANT_FRAME: Duration = Duration::from_millis(500);
+const LOAD_WAIT: Duration = Duration::from_secs(15);
+
+/// The modules configured page `page` needs, running or not: its `module` widgets, the knobs
+/// aimed at one of their commands (their widgets show its value), the LEDs lit by one, the
+/// buttons, knob clicks and deck tiles running one.
+fn modules_needed(page: &Page) -> Vec<&str> {
+    fn action(a: &Action) -> Option<&str> {
+        match a {
+            Action::ToolCommand { tool, .. } => Some(tool.as_str()),
+            _ => None,
+        }
+    }
+    let mut out = Vec::new();
+    for k in &page.knobs {
+        if let Target::Tool { tool, .. } = &k.target {
+            out.push(tool.as_str());
+        }
+        out.extend([&k.click, &k.hold].into_iter().filter_map(action));
+    }
+    for b in &page.buttons {
+        if let Led::Tool { tool, .. } = &b.led {
+            out.push(tool.as_str());
+        }
+        out.extend([&b.action, &b.hold].into_iter().filter_map(action));
+    }
+    out.extend([&page.power, &page.power_hold].into_iter().filter_map(action));
+    for w in &page.widgets {
+        match &w.kind {
+            WidgetKind::Tool { tool, .. } => out.push(tool.as_str()),
+            WidgetKind::Deck { tiles, .. } => out.extend(tiles.iter().filter_map(|t| action(&t.action))),
+            _ => {}
+        }
+    }
+    out.sort_unstable();
+    out.dedup();
+    out
 }
 
 /// Whether a module of the config that keeps the device awake (`keep_awake`) is on screen
@@ -2119,6 +2292,7 @@ mod tests {
             args: Vec::new(),
             command: String::new(),
             keep_awake: true,
+            pause_hidden: false,
         });
         let shown = |names: &[&str]| names.iter().map(|n| n.to_string()).collect::<Vec<_>>();
         assert!(kept_awake(&cfg, &shown(&["Discord"])), "its page shown");
@@ -2131,6 +2305,50 @@ mod tests {
         cfg.tools[0].keep_awake = false;
         assert!(!kept_awake(&cfg, &shown(&["Discord"])), "without the option");
         assert!(!toml::to_string(&cfg.tools[0]).unwrap().contains("keep_awake"));
+    }
+
+    /// « Load only when shown » is on by default (written in config.toml only when switched
+    /// off); a configured page needs its `module` widgets and the modules its knobs, LEDs and
+    /// actions are tied to; the menu offers the modules not loaded, and choosing one starts it
+    /// and shows its page once it comes.
+    #[test]
+    fn modules_load_only_when_shown_by_default() {
+        let t: crate::config::Tool = toml::from_str("name = \"OBS\"\nmodule = \"obs\"\n").unwrap();
+        assert!(t.pause_hidden);
+        assert!(!toml::to_string(&t).unwrap().contains("pause_hidden"));
+        let always = crate::config::Tool { pause_hidden: false, ..t.clone() };
+        assert!(toml::to_string(&always).unwrap().contains("pause_hidden = false"));
+
+        let mut page = Config::default().pages[0].clone();
+        assert!(modules_needed(&page).is_empty());
+        page.knobs[1].target = Target::Tool { tool: "Spotify".into(), command: "volume".into() };
+        page.buttons[2].led = Led::Tool { tool: "OBS".into(), command: "record".into() };
+        page.buttons[3].action = Action::ToolCommand { tool: "OBS".into(), command: "scene".into() };
+        page.buttons[0].action = Action::Tool { name: "Motor Town".into() }; // only when pressed
+        let mut kind = WidgetKind::template("module").unwrap();
+        if let WidgetKind::Tool { tool, .. } = &mut kind {
+            *tool = "Discord".into();
+        }
+        page.widgets.push(crate::config::Widget { x: 0, y: 0, w: 100, h: 50, frame: None, kind });
+        assert_eq!(modules_needed(&page), ["Discord", "OBS", "Spotify"]);
+
+        let mut cfg = Config::default();
+        cfg.tools.push(crate::config::Tool { name: "Motor Town".into(), ..t });
+        let shared = Arc::new(Shared::new(cfg));
+        let mut e = Engine::new(shared.clone(), crate::audio::open(true));
+        e.menu = Some(ModuleMenu::new());
+        e.menu_tick(&[], None);
+        let entries = &e.menu.as_ref().unwrap().entries;
+        assert_eq!((entries[0].owner, entries[0].name.as_str()), (0, "Motor Town"), "offered, not loaded");
+        e.menu_inputs([0; 4], 1, 0);
+        assert!(shared.is_wanted("Motor Town"), "chosen: started");
+        assert!(shared.api.show.lock().unwrap().is_none());
+        let (id, _tx, _rx) = crate::api::register(&shared);
+        crate::api::process(&shared, id, r#"{"type": "hello", "name": "Motor Town"}"#);
+        crate::api::process(&shared, id, r#"{"type": "page", "page": "tableau"}"#);
+        e.loading_tick();
+        assert_eq!(*shared.api.show.lock().unwrap(), Some((id, "tableau".into())), "its page once it comes");
+        assert!(!shared.is_wanted("Motor Town"), "shown: the screen wants it from now on, not the menu");
     }
 
     /// A module restarted while its page is shown (code or settings changed): the main page

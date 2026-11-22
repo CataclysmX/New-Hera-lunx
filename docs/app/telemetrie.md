@@ -31,7 +31,10 @@ PLEIN » (sous 10 %, à nouveau après être repassé au-dessus de 15 %), « SEN
 « TOUR 2 : 1:23.456 » (violet et « (MEILLEUR) » si c'est le meilleur), « ARRIVÉE : P2 »,
 « DISQUALIFIÉ ». **Widget** « Tableau de bord » (220 × 68 : rapport, vitesse, régime) pour
 n'importe quelle page. Case « Veille » de la fiche du module (onglet Modules) : pas de veille tant
-que le tableau est affiché.
+que le tableau est affiché. Case « Chargement : charger uniquement quand affiché » (cochée par
+défaut) : le module n'est lancé que quand sa page ou son widget s'affiche, gelé 3 s après qu'ils
+ont quitté l'écran et arrêté 30 s après (0 % de processeur ; mesuré à environ 1 % d'un cœur sinon,
+jeu lancé, page masquée) ; mais hors de l'écran : ni pilules ni relais ([modules.md](modules.md)).
 
 ## Réception : IP, ports, relais (`hsm01/udp.py`, les deux modules)
 - **IP d'écoute** (`ecoute`, 0.0.0.0 par défaut : ce PC et le réseau ; 127.0.0.1 : ce PC seul ;

@@ -83,6 +83,13 @@ pub struct Hub {
     command_states: Mutex<HashMap<(u64, String), CommandState>>,
     /// Lists of choices each client gives its settings form (`choices`): name → values.
     choices: Mutex<HashMap<u64, HashMap<String, Vec<String>>>>,
+    /// Modules frozen by « Load only when shown » (by name, `tools.rs`): broadcasts and the inputs
+    /// of others skip them; a message sent to one of them wakes it up (`woken`).
+    paused: Mutex<std::collections::HashSet<String>>,
+    woken: Mutex<std::collections::HashSet<String>>,
+    /// Last line of each broadcast event a paused module missed (name → event → line), sent to
+    /// it when it runs again.
+    missed: Mutex<HashMap<String, HashMap<String, String>>>,
 }
 
 /// A command a running tool offers (`commands`): buttons run it, a knob turns it. Chosen in the
@@ -123,26 +130,84 @@ impl Hub {
         self.pages.lock().unwrap().clone()
     }
 
-    /// Send `msg` to client `id` (dropped if it is gone).
+    /// Send `msg` to client `id` (dropped if it is gone); a paused module wakes up for it.
     pub fn send(&self, id: u64, msg: &Value) {
-        if let Some((_, tx)) = self.clients.lock().unwrap().get(&id) {
+        if let Some((name, tx)) = self.clients.lock().unwrap().get(&id) {
+            self.wake(name);
             let _ = tx.send(msg.to_string());
         }
     }
 
     /// An input event to every client, `"mine": true` for `owner` only (the one that takes it).
+    /// A paused module gets it only if it is the owner (it wakes up then).
     pub fn emit(&self, owner: Option<u64>, mut msg: Value) {
-        for (id, (_, tx)) in self.clients.lock().unwrap().iter() {
-            msg["mine"] = json!(Some(*id) == owner);
+        let paused = self.paused.lock().unwrap().clone();
+        for (id, (name, tx)) in self.clients.lock().unwrap().iter() {
+            let mine = Some(*id) == owner;
+            if mine {
+                self.wake(name);
+            } else if paused.contains(name) {
+                continue;
+            }
+            msg["mine"] = json!(mine);
             let _ = tx.send(msg.to_string());
         }
     }
 
+    /// An event to every client; a paused module gets the last one of each kind when it runs
+    /// again (`set_paused`).
     pub fn broadcast(&self, msg: &Value) {
         let line = msg.to_string();
-        for (_, tx) in self.clients.lock().unwrap().values() {
-            let _ = tx.send(line.clone());
+        let paused = self.paused.lock().unwrap().clone();
+        for (name, tx) in self.clients.lock().unwrap().values() {
+            if !paused.contains(name) {
+                let _ = tx.send(line.clone());
+            }
         }
+        if let (Some(event), false) = (msg.get("event").and_then(Value::as_str), paused.is_empty()) {
+            let mut missed = self.missed.lock().unwrap();
+            for name in paused {
+                missed.entry(name).or_default().insert(event.to_owned(), line.clone());
+            }
+        }
+    }
+
+    /// Module `name` frozen (`on`) or running again (`tools.rs`); running again, it gets the
+    /// last broadcast of each event it missed (standby, media player…).
+    pub fn set_paused(&self, name: &str, on: bool) {
+        if on {
+            self.paused.lock().unwrap().insert(name.to_owned());
+            return;
+        }
+        if !self.paused.lock().unwrap().remove(name) {
+            return;
+        }
+        self.woken.lock().unwrap().remove(name);
+        let missed = self.missed.lock().unwrap().remove(name).unwrap_or_default();
+        for (n, tx) in self.clients.lock().unwrap().values() {
+            if n == name {
+                for line in missed.values() {
+                    let _ = tx.send(line.clone());
+                }
+            }
+        }
+    }
+
+    /// A message for module `name`: woken up if it is paused (`take_woken`).
+    fn wake(&self, name: &str) {
+        if self.paused.lock().unwrap().contains(name) {
+            self.woken.lock().unwrap().insert(name.to_owned());
+        }
+    }
+
+    /// Whether paused module `name` got a message since the last call.
+    pub fn take_woken(&self, name: &str) -> bool {
+        self.woken.lock().unwrap().remove(name)
+    }
+
+    /// Whether a client named `name` is connected (a module started by the app said hello).
+    pub fn connected(&self, name: &str) -> bool {
+        self.clients.lock().unwrap().values().any(|(n, _)| n == name)
     }
 
     /// Name of client `id` (`hello`: a module started by the app says its name).

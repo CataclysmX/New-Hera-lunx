@@ -159,6 +159,41 @@ Sa fiche (onglet Modules) a aussi la case **Veille : pas de veille quand il est 
 pas tant que la page du module (ou son widget dans la page) est affichée ; sur une autre page,
 la veille revient normalement (`keep_awake` dans `[[module]]`).
 
+**Chargement : charger uniquement quand affiché** (cochée **par défaut** ; décochée :
+`pause_hidden = false` dans `[[module]]`, le module tourne tout le temps ; « + Commande » la
+décoche, un programme quelconque n'ayant pas forcément de page). Le module **n'est pas lancé** avec
+l'app : il l'est quand on le **demande** (`Shared::wanted`, nom → jusqu'à quand) :
+- **l'écran en a besoin**, redemandé à chaque image (`WANT_FRAME`, 0,5 s) : sa page affichée, ou la
+  page de la configuration affichée qui a son widget `module`, une molette dirigée sur une de ses
+  commandes, une LED allumée par une, un bouton, un clic de molette ou une case de deck qui en lance
+  une (`engine::modules_needed`) ;
+- **le menu des modules** (molette 1 maintenue) : il y figure même non chargé (« non chargé ») ;
+  le choisir le lance, sa page s'affiche dès qu'elle arrive (`pending_show`, 15 s au plus) ; de même
+  l'action « page d'un module » ;
+- **une de ses commandes** lancée alors qu'il n'est pas chargé : il est lancé et la reçoit dès qu'il
+  l'offre (`pending_commands`, 15 s au plus) ;
+- **la fenêtre** : une liste de commandes ou de widgets des modules ouverte (tous les modules avec
+  l'option, 20 s, pour qu'ils offrent les leurs), l'onglet de ses réglages (les listes qu'il donne).
+
+Plus demandé, il est **gelé** au bout de 3 s (SIGSTOP à son groupe de processus : plus aucun temps
+processeur, sa mémoire reste) et repart (SIGCONT) dès qu'il est redemandé (en 0,1 s environ ; la
+dernière image de sa page s'affiche entre-temps) ou qu'un message lui est adressé (une entrée qu'il
+a prise, la fermeture d'une de ses alertes), puis se regèle 3 s après ; au bout de **30 s**, il est
+**arrêté** (`IDLE_UNLOAD` : sans délai de relance ni compte de redémarrage ; état « non chargé : se
+charge quand il est affiché »). Rechargé, il repart de zéro (ses pages, ses réglages relus).
+Gelé ou arrêté, il ne fait **rien d'autre** (pas d'alertes ni de pilules, pas de données relayées,
+les paquets UDP d'un jeu sont perdus ; une connexion réseau peut tomber s'il reste gelé) : à
+décocher pour un module qui doit travailler en fond. Parmi les modules livrés : Discord (pilules
+« … a rejoint / quitté le salon »), Lecteur média (alerte au changement de morceau), OBS (pilules
+quand la scène, l'enregistrement… changent dans OBS), Système (alertes de seuils) ; Motor Town et
+SimHub perdent leurs pilules de jeu. Les événements diffusés (`standby`, `media`) ne lui sont pas
+envoyés pendant la pause : il reçoit le dernier de chaque sorte à la reprise ; les entrées des
+autres pages, sans intérêt pour lui, sont sautées. Gelé seulement une fois connecté (ses pages
+existent, on peut les afficher). Changer la case (comme « Veille ») ne relance pas un module lancé
+(`Tool::same_launch`). Si l'app meurt pendant la pause, le système termine le module (groupe
+orphelin arrêté : SIGHUP puis SIGCONT). Code : `tools::pause_hidden`, `Shared::want` / `wanted`,
+`Engine::open_module` / `loading_tick`, `Hub::set_paused` / `wake` / `missed`.
+
 ## Langue des modules
 Les textes d'un module s'écrivent en anglais ; `i18n/<code>.toml` dans son dossier les donne dans une
 langue, au même format que les fichiers de l'app. **`en.toml`** contient les textes anglais

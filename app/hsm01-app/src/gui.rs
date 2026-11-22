@@ -1154,6 +1154,11 @@ impl Gui {
                 Tab::Tools => self.tab_tools(ui),
                 Tab::Settings => self.tab_settings(ui),
             });
+        // a list of the modules' commands or widgets was open: the modules « Load only when
+        // shown » load meanwhile to offer theirs
+        if ui.ctx().data_mut(|d| d.remove_temp::<bool>(egui::Id::unique(WANT_MODULES))).is_some() {
+            self.shared.want_all(Duration::from_secs(20));
+        }
     }
 
     /// Tab of an enabled tool: its settings file (stream deck editor, or TOML text), written by
@@ -1169,6 +1174,8 @@ impl Gui {
             .find(|t| t.module == m.id)
             .map_or(m.name.clone(), |t| t.name.clone());
         section(ui, &title);
+        // « Load only when shown »: loaded while its settings are open (the lists it gives them)
+        self.shared.want(&title, Duration::from_secs(2));
         if let Some(g) = m.settings.as_ref().map(|s| s.guide.as_str()).filter(|g| !g.is_empty()) {
             crate::settingsform::guide(ui, g);
         }
@@ -1308,6 +1315,7 @@ impl Gui {
                                     args: m.args.clone(),
                                     command: String::new(),
                                     keep_awake: false,
+                                    pause_hidden: true,
                                 });
                             }
                         }
@@ -1331,6 +1339,7 @@ impl Gui {
                         }
                         ui.end_row();
                         keep_awake_row(ui, &mut t.keep_awake);
+                        pause_hidden_row(ui, &mut t.pause_hidden);
                     }
                     ui.label(tr("Folder"));
                     ui.horizontal(|ui| {
@@ -1370,6 +1379,7 @@ impl Gui {
                         ui.add(TextEdit::singleline(&mut t.command).desired_width(f32::INFINITY));
                         ui.end_row();
                         keep_awake_row(ui, &mut t.keep_awake);
+                        pause_hidden_row(ui, &mut t.pause_hidden);
                     });
                 } else {
                     ui.colored_label(
@@ -1415,6 +1425,7 @@ impl Gui {
                     args: Vec::new(),
                     command: tr("python3 /path/to/my_module.py").into(),
                     keep_awake: false,
+                    pause_hidden: false, // any program: it may have no page to show
                 });
             }
         });
@@ -1430,6 +1441,7 @@ impl Gui {
                         args: Vec::new(),
                         command: String::new(),
                         keep_awake: false,
+                        pause_hidden: true,
                     });
                     self.new_tool.clear();
                     open_path(&dir.join(id));
@@ -2281,11 +2293,25 @@ fn keep_awake_row(ui: &mut Ui, on: &mut bool) {
     ui.end_row();
 }
 
-/// State of a tool: running (pid, restarts), switched off, stopped (why), starting.
+/// Row « Chargement » of a module's card: it runs only while its page or its widget is on screen
+/// (frozen otherwise, `pause_hidden`).
+fn pause_hidden_row(ui: &mut Ui, on: &mut bool) {
+    ui.label(tr("Load"));
+    ui.checkbox(on, tr("load only when shown")).on_hover_text(
+        tr("the module starts only when the screen needs it (its page, its widget in the page, a knob, LED or button of the page tied to one of its commands); a few seconds after it leaves the screen it is frozen (no processor time), and stopped after 30 s. Meanwhile it does nothing else: no alerts, no pills, no relayed data. Untick it for a module that must work in the background"),
+    );
+    ui.end_row();
+}
+
+/// State of a tool: running (pid, restarts) or paused, switched off, stopped (why), starting.
 fn tool_state(ui: &mut Ui, st: Option<&crate::tools::ToolStatus>, enabled: bool) {
     match st {
         Some(s) if s.running => {
-            let mut text = tf!("running (pid {pid})", pid = s.pid.unwrap_or(0));
+            let mut text = if s.paused {
+                tf!("paused, hidden (pid {pid})", pid = s.pid.unwrap_or(0))
+            } else {
+                tf!("running (pid {pid})", pid = s.pid.unwrap_or(0))
+            };
             if s.restarts > 0 {
                 text.push_str(&tf!(", restarted {n} times", n = s.restarts));
             }
@@ -2293,6 +2319,9 @@ fn tool_state(ui: &mut Ui, st: Option<&crate::tools::ToolStatus>, enabled: bool)
         }
         _ if !enabled => {
             ui.weak(tr("disabled"));
+        }
+        Some(s) if s.waiting => {
+            ui.weak(tr("not loaded: loads when shown"));
         }
         Some(s) if s.last_exit.is_some() => {
             let why = s.last_exit.clone().unwrap_or_default();
@@ -2943,6 +2972,7 @@ fn tool_page_pick(
     egui::ComboBox::from_id_salt("tool_widget_page")
         .selected_text(shown)
         .show_ui(ui, |ui| {
+            want_modules(ui);
             ui.selectable_value(page, String::new(), main);
             for (_, p) in mine.iter().enumerate().filter(|(i, _)| Some(*i) != first) {
                 if ui.selectable_label(*page == p.id, label(p)).clicked() {
@@ -2953,6 +2983,15 @@ fn tool_page_pick(
                 }
             }
         });
+}
+
+/// Key of the egui flag « a list of the modules' commands or widgets is open » (`want_modules`).
+const WANT_MODULES: &str = "hsm01_want_modules";
+
+/// A list of the modules' commands or widgets is open: the modules « Load only when shown » are
+/// loaded meanwhile (asked for once the frame is drawn), so that they offer theirs.
+fn want_modules(ui: &Ui) {
+    ui.ctx().data_mut(|d| d.insert_temp(egui::Id::unique(WANT_MODULES), true));
 }
 
 /// Choose a command among those the running tools offer (of `kind` only, if given): « tool ·
@@ -2976,6 +3015,7 @@ fn command_pick(
         .width(190.0)
         .selected_text(shown)
         .show_ui(ui, |ui| {
+            want_modules(ui);
             for (t, c) in &offered {
                 let on = t == tool && c.id == *command;
                 let r = ui.selectable_label(on, format!("{t} · {}", c.name));
@@ -3719,6 +3759,7 @@ mod tests {
             args: Vec::new(),
             command: String::new(),
             keep_awake: false,
+            pause_hidden: false,
         }];
         let ctx = egui::Context::default();
         let frame = |gui: &mut Gui| {
@@ -3783,6 +3824,7 @@ mod tests {
             args: Vec::new(),
             command: String::new(),
             keep_awake: false,
+            pause_hidden: false,
         };
         gui.draft.tools = vec![on("deck"), on("autre")];
         let tabs = gui.settings_tabs();

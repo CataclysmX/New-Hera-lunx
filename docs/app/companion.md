@@ -138,7 +138,11 @@ Notifications → réveil ou son propre `wake`.
 de sa fiche (onglet Modules ; `keep_awake = true` dans son `[[module]]`). Tant que sa page est
 affichée, ou que sa page ou un de ses widgets est dans la page affichée, c'est comme une action à
 chaque image : l'écran reste allumé ; sur une autre page, le délai de veille repart de zéro
-(`engine::kept_awake`, avec `shown_tool` et les widgets `module` de la page).
+(`engine::kept_awake`, avec `shown_tool` et les widgets `module` de la page). À chaque image, le
+moteur demande aussi les modules dont l'écran a besoin (`Shared::want` : sa page, ou la page de
+la configuration avec leurs widgets, molettes, LEDs et actions, `engine::modules_needed`) : la
+case « Chargement : charger uniquement quand affiché » (cochée par défaut) ne lance un module
+que demandé, le gèle 3 s après et l'arrête 30 s après ([modules.md](modules.md)).
 
 Arrêt de l'app : l'appareil passe en veille (rétroéclairage à 0, LEDs éteintes ; plus rien ne
 passe sur l'USB) jusqu'au prochain lancement, qui le rallume. Ça vaut pour « Quitter » (icône de

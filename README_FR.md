@@ -95,6 +95,12 @@ Ce qu'affiche l'écran du Stream 100 (480×272, rendu par l'app ; données de te
 - **Pas de veille pendant un module** : chaque module a une case « pas de veille quand il est
   affiché » (OBS pendant un direct, un tableau de bord de jeu…) : l'écran reste allumé tant que sa
   page ou un de ses widgets est affiché, et la veille revient sur les autres pages.
+- **Modules chargés uniquement quand affichés** (par défaut) : un module ne se lance que quand
+  l'écran en a besoin (sa page ouverte depuis le menu des modules, son widget, une molette, une LED
+  ou un bouton lié à ses commandes sur la page affichée), est gelé quelques secondes après avoir
+  quitté l'écran et arrêté au bout de 30 s. Décochez « charger uniquement quand affiché » sur sa
+  fiche pour un module qui doit travailler en fond (pilules d'arrivée / départ de Discord, alertes
+  des capteurs du système…).
 - **App fermée** (Quitter, fin de session, extinction du PC) : l'appareil s'éteint proprement.
 - **PC en veille** (firmware custom) : l'écran et les LEDs s'éteignent avec lui, et se rallument
   au réveil.

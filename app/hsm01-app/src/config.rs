@@ -94,6 +94,20 @@ pub struct Tool {
     /// No standby of the device while it runs (« Empêche la veille » in the Modules tab).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub keep_awake: bool,
+    /// Frozen while it is not on screen: neither its page, nor its widget, nor a knob or LED of
+    /// the page shown tied to one of its commands (« Load only when shown », tools.rs); it takes
+    /// no processor time then. On by default (`pause_hidden = false`: it always runs).
+    #[serde(default = "yes", skip_serializing_if = "is_yes")]
+    pub pause_hidden: bool,
+}
+
+impl Tool {
+    /// Same program started the same way: the options (`keep_awake`, `pause_hidden`) change
+    /// without a restart.
+    pub fn same_launch(&self, other: &Tool) -> bool {
+        (&self.name, self.enabled, &self.module, &self.args, &self.command)
+            == (&other.name, other.enabled, &other.module, &other.args, &other.command)
+    }
 }
 
 impl Default for ApiSettings {
@@ -1026,6 +1040,10 @@ fn yes() -> bool {
     true
 }
 
+fn is_yes(b: &bool) -> bool {
+    *b
+}
+
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Align {
@@ -1608,6 +1626,7 @@ mod tests {
             args: vec!["--alert".into()],
             command: String::new(),
             keep_awake: false,
+            pause_hidden: false,
         });
         let mut sep = WidgetKind::template("separator").unwrap();
         if let WidgetKind::Separator { style, fade, .. } = &mut sep {

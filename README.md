@@ -91,6 +91,11 @@ What the Stream 100's screen shows (480×272, rendered by the app; test data and
 - **No standby while a module is on screen**: each module has a « no standby while it is
   shown » box (OBS during a stream, a game dashboard…): the screen stays on while its page or
   one of its widgets is shown, and standby comes back on the other pages.
+- **Modules loaded only when shown** (by default): a module starts only when the screen needs
+  it (its page opened from the modules menu, its widget, a knob, LED or button tied to its
+  commands on the page shown), is frozen a few seconds after it leaves the screen and stopped
+  after 30 s. Untick « load only when shown » on its card for a module that must work in the
+  background (Discord's join / leave pills, alerts of the system sensors…).
 - **App closed** (Quit, end of session, PC shutdown): the device turns off cleanly.
 - **PC asleep** (custom firmware): screen and LEDs turn off with it, and come back on wake-up.
 - **App crashed or gone** (custom firmware): the « SIGNAL NOT FOUND » screen saver at 1 %

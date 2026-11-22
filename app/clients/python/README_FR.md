@@ -103,7 +103,18 @@ Vie d'un module : lancé quand son interrupteur est allumé ; relancé s'il s'ar
 enregistrés, et quand la langue de l'app change ; arrêté quand on le coupe ou le retire, ou
 quand l'app se ferme. **Il doit s'arrêter quand la connexion se ferme** : `client.run()` rend
 alors la main. Sa fiche a aussi **« pas de veille quand il est affiché »** : l'écran ne s'éteint
-pas tant que sa page (ou un de ses widgets) est à l'écran.
+pas tant que sa page (ou un de ses widgets) est à l'écran. Et **« charger uniquement quand
+affiché »**, cochée par défaut : le module n'est lancé que quand l'écran en a besoin (sa page
+ouverte depuis le menu des modules, son widget ou une molette, une LED ou un bouton lié à une de
+ses commandes sur la page affichée) ; 3 s après avoir quitté l'écran il est gelé (plus de temps
+processeur, tous ses threads arrêtés) et repart dès qu'il resert ou qu'un message lui est adressé
+(une entrée qu'il a prise) ; au bout de 30 s il est arrêté (la connexion se ferme :
+`client.run()` rend la main) et relancé de zéro la fois suivante. Gelé, il ne reçoit aucun
+événement diffusé, sauf le dernier `standby` / `media` à la reprise. Votre code n'a rien à faire
+pour ça, mais ce qu'il fait en fond (alertes, pilules, minuteries) n'a lieu que tant qu'il est à
+l'écran : si votre module est fait pour ça, indiquez dans sa description qu'il faut décocher
+« charger uniquement quand affiché ». Dessinez votre page (et vos widgets) dès le démarrage :
+l'app l'affiche alors.
 
 ## L'écran et ses widgets
 480 × 272 pixels, origine en haut à gauche. Couleurs `'#rrggbb'` ; un **dégradé** est une liste

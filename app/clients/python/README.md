@@ -99,7 +99,16 @@ Life of a module: started when its switch is on; started again if it stops (1 s,
 the app's language changes; stopped when it is switched off or removed, or when the app quits.
 **It must stop when the connection closes**: `client.run()` returns then.
 Its card also has **« no standby while it is shown »**: the screen does not turn off while its
-page (or one of its widgets) is on screen.
+page (or one of its widgets) is on screen. And **« load only when shown »**, ticked by default:
+the module is started only when the screen needs it (its page opened from the modules menu, its
+widget or a knob, LED or button tied to one of its commands on the page shown); 3 s after it
+leaves the screen it is frozen (no processor time, every thread stopped), and runs again as soon
+as it is needed or a message is sent to it (an input it grabbed); after 30 s it is stopped (the
+connection closes: `client.run()` returns), and started anew next time. Frozen, it gets no
+broadcast event but the last `standby` / `media` one when it runs again. Your code needs nothing
+for it, but whatever it does in the background (alerts, pills, timers) only happens while it is
+on screen: if your module is made for that, say in its description that « load only when shown »
+must be unticked. Draw your page (and widgets) as soon as you start: the app shows it then.
 
 ## The screen and its widgets
 480 × 272 pixels, origin at the top left. Colours `'#rrggbb'`; a **gradient** is a list of

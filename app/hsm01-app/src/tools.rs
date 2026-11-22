@@ -17,6 +17,7 @@
 use std::collections::{HashMap, VecDeque};
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
+use std::os::unix::process::CommandExt;
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
@@ -47,6 +48,10 @@ pub struct ToolStatus {
     pub log: VecDeque<String>,
     /// Asked by the window (its secrets changed): restarted at the next check.
     pub restart: bool,
+    /// Frozen because hidden (« Load only when shown »).
+    pub paused: bool,
+    /// Not started, or stopped: « Load only when shown », it starts when the screen needs it.
+    pub waiting: bool,
 }
 
 /// A tool of the tools folder (`<id>/module.toml`).
@@ -611,6 +616,112 @@ struct Running {
     code: Option<(PathBuf, Option<SystemTime>)>,
     /// Language given to it (`HSM01_LANG`): restarted in the new one when it changes.
     lang: String,
+    /// Frozen because hidden (`pause_hidden`), and the last time it was on screen, woken up,
+    /// not connected yet or without the option.
+    paused: bool,
+    seen: Instant,
+}
+
+/// « Load only when shown »: a module is frozen once no longer wanted for this long (a page
+/// turned past it is not worth it; a message that woke it up gives it as long), and stopped
+/// (unloaded) after this long.
+#[cfg(not(test))]
+const HIDDEN_GRACE: Duration = Duration::from_secs(3);
+#[cfg(test)]
+const HIDDEN_GRACE: Duration = Duration::from_millis(400);
+#[cfg(not(test))]
+const IDLE_UNLOAD: Duration = Duration::from_secs(30);
+#[cfg(test)]
+const IDLE_UNLOAD: Duration = Duration::from_millis(1500);
+
+/// « Load only when shown » (`pause_hidden`): a module with the option is started only when
+/// wanted (`Shared::wanted`: the screen needs it, an action or the window asks for it, supervise);
+/// no longer wanted for `HIDDEN_GRACE`, it is frozen (SIGSTOP: no processor time) and runs again
+/// (SIGCONT) as soon as it is wanted or a message is sent to it (a command, an input it grabbed);
+/// for `IDLE_UNLOAD`, it is stopped. Only once connected: its pages exist, they can be shown.
+/// Returns the modules stopped.
+fn pause_hidden(shared: &Shared, running: &mut HashMap<String, Running>) -> Vec<String> {
+    let options: Vec<String> = shared
+        .config
+        .read()
+        .unwrap()
+        .tools
+        .iter()
+        .filter(|t| t.enabled && t.pause_hidden)
+        .map(|t| t.name.clone())
+        .collect();
+    let now = Instant::now();
+    let mut idle = Vec::new();
+    for (name, r) in running.iter_mut() {
+        let option = options.contains(name);
+        let woken = shared.api.take_woken(name);
+        if !option || woken || shared.is_wanted(name) || !shared.api.connected(name) {
+            r.seen = now;
+        }
+        if option && now.duration_since(r.seen) >= IDLE_UNLOAD {
+            idle.push(name.clone());
+            continue;
+        }
+        let pause = option && now.duration_since(r.seen) >= HIDDEN_GRACE;
+        if pause != r.paused {
+            // marked paused before it stops, running after it runs: a message sent meanwhile
+            // wakes it up, a broadcast is kept for it
+            if pause {
+                shared.api.set_paused(name, true);
+            }
+            match freeze(&r.child, pause) {
+                Ok(()) => {
+                    r.paused = pause;
+                    if !pause {
+                        shared.api.set_paused(name, false);
+                    }
+                    status(shared, name, |s| s.paused = pause);
+                }
+                Err(e) => {
+                    if pause {
+                        shared.api.set_paused(name, false);
+                    }
+                    eprintln!("hsm01-app: {name}: {e}");
+                }
+            }
+        }
+    }
+    for name in &idle {
+        if let Some(mut r) = running.remove(name) {
+            let _ = r.child.kill(); // frozen too
+            let _ = r.child.wait();
+            unpause(shared, name, &r);
+            status(shared, name, |s| {
+                s.running = false;
+                s.pid = None;
+                s.waiting = true;
+            });
+        }
+    }
+    idle
+}
+
+/// SIGSTOP (`on`) or SIGCONT to the process group of `child` (it and the programs it started:
+/// `sh -c`…). Not reaped yet, its pid cannot be another program's.
+fn freeze(child: &Child, on: bool) -> std::io::Result<()> {
+    let sig = if on { libc::SIGSTOP } else { libc::SIGCONT };
+    let Ok(pid) = libc::pid_t::try_from(child.id()) else {
+        return Err(std::io::ErrorKind::InvalidInput.into());
+    };
+    // SAFETY: kill() only sends a signal; the group is the child's own (`process_group(0)`)
+    if unsafe { libc::kill(-pid, sig) } == 0 {
+        Ok(())
+    } else {
+        Err(std::io::Error::last_os_error())
+    }
+}
+
+/// A tool that stops or is stopped: no longer paused (its next start runs).
+fn unpause(shared: &Shared, name: &str, r: &Running) {
+    if r.paused {
+        shared.api.set_paused(name, false);
+    }
+    status(shared, name, |s| s.paused = false);
 }
 
 /// Watch the configured tools in a thread of its own until the app quits; first, the shipped
@@ -674,7 +785,7 @@ fn supervise(shared: &Arc<Shared>, tools: &Path) {
         for (name, r) in &running {
             match wanted.iter().find(|t| &t.name == name) {
                 None => stale.push((name.clone(), tr("stopped"))),
-                Some(t) if t != &r.tool && settled(t) => stale.push((name.clone(), tr("stopped"))),
+                Some(t) if !t.same_launch(&r.tool) && settled(t) => stale.push((name.clone(), tr("stopped"))),
                 _ => {
                     let changed = check_code
                         && r.code
@@ -698,8 +809,9 @@ fn supervise(shared: &Arc<Shared>, tools: &Path) {
         }
         for (name, why) in stale {
             if let Some(mut r) = running.remove(&name) {
-                let _ = r.child.kill();
+                let _ = r.child.kill(); // frozen too
                 let _ = r.child.wait();
+                unpause(shared, &name, &r);
                 status(shared, &name, |s| {
                     s.running = false;
                     s.pid = None;
@@ -716,7 +828,9 @@ fn supervise(shared: &Arc<Shared>, tools: &Path) {
             }
         }
         for (name, why, lived) in ended {
-            running.remove(&name);
+            if let Some(r) = running.remove(&name) {
+                unpause(shared, &name, &r);
+            }
             let delay = match backoff.get(&name) {
                 Some((_, d)) if lived < Duration::from_secs(60) => {
                     (*d * 2).min(Duration::from_secs(30))
@@ -736,6 +850,12 @@ fn supervise(shared: &Arc<Shared>, tools: &Path) {
                 .get(&t.name)
                 .is_none_or(|(at, _)| Instant::now() >= *at);
             if running.contains_key(&t.name) || !ready || !settled(t) {
+                continue;
+            }
+            // « Load only when shown »: started once the screen (or an action…) needs it
+            let lazy = t.pause_hidden && !shared.is_wanted(&t.name);
+            status(shared, &t.name, |s| s.waiting = lazy);
+            if lazy {
                 continue;
             }
             let folder = (t.command.trim().is_empty() && !t.module.is_empty())
@@ -761,6 +881,8 @@ fn supervise(shared: &Arc<Shared>, tools: &Path) {
                             since: Instant::now(),
                             code,
                             lang: lang.clone(),
+                            paused: false,
+                            seen: Instant::now(),
                         },
                     );
                 }
@@ -777,7 +899,13 @@ fn supervise(shared: &Arc<Shared>, tools: &Path) {
             running.contains_key(name)
                 || shared.config.read().unwrap().tools.iter().any(|t| &t.name == name)
         });
-        std::thread::sleep(Duration::from_millis(250));
+        // a paused module runs again within 50 ms of being shown
+        for _ in 0..5 {
+            for name in pause_hidden(shared, &mut running) {
+                backoff.remove(&name); // unloaded, not a failure: no restart delay or count
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
     }
     for (_, mut r) in running {
         let _ = r.child.kill();
@@ -794,7 +922,9 @@ fn spawn(shared: &Arc<Shared>, t: &Tool, tools: &Path, lang: &str) -> Result<Chi
     let launch = command_of(t, tools)?;
     let prog = launch.prog.clone();
     let mut cmd = Command::new(&launch.prog);
-    cmd.args(&launch.args);
+    // a group of its own: frozen with the programs it starts (« Load only when shown »); if the
+    // app dies while it is frozen, the system ends it (SIGHUP to an orphaned stopped group)
+    cmd.args(&launch.args).process_group(0);
     if let Some(dir) = &launch.cwd {
         // its sensitive data first: the app's own variables below win over it
         cmd.current_dir(dir).envs(read_env(dir)).env("HSM01_MODULE_DIR", dir);
@@ -989,6 +1119,7 @@ mod tests {
             args: Vec::new(),
             command: "echo \"bonjour $HSM01_MODULE\"; sleep 0.3".into(),
             keep_awake: false,
+            pause_hidden: false,
         });
         let s = shared.clone();
         let sup = std::thread::spawn(move || supervise(&s, Path::new("/nonexistent")));
@@ -1007,6 +1138,81 @@ mod tests {
         wait("restarted", &|st| st.restarts >= 1);
         shared.config.write().unwrap().tools[0].enabled = false;
         wait("stopped", &|st| !st.running);
+        shared.quit.store(true, Ordering::Relaxed);
+        sup.join().unwrap();
+    }
+
+    /// « Load only when shown »: not started until wanted; a connected module no longer wanted is
+    /// frozen after a moment (the broadcasts and the others' inputs skip it), runs again when
+    /// wanted (with the last broadcast it missed) or when a message is sent to it, and is stopped
+    /// after a longer while; the option changes without a restart.
+    #[test]
+    fn modules_load_only_when_shown() {
+        use serde_json::json;
+        let shared = Arc::new(Shared::new(crate::config::Config::default()));
+        shared.config.write().unwrap().tools.push(Tool {
+            name: "dormeur".into(),
+            enabled: true,
+            module: String::new(),
+            args: Vec::new(),
+            command: "sleep 60".into(),
+            keep_awake: false,
+            pause_hidden: true,
+        });
+        // its connection to the API, as a module says hello
+        let (id, _tx, rx) = crate::api::register(&shared);
+        crate::api::process(&shared, id, r#"{"type": "hello", "name": "dormeur"}"#);
+        let s = shared.clone();
+        let sup = std::thread::spawn(move || supervise(&s, Path::new("/nonexistent")));
+        let status = || shared.tools.lock().unwrap().get("dormeur").cloned().unwrap_or_default();
+        let wait = |what: &str, ok: &dyn Fn(&ToolStatus) -> bool| {
+            let t = Instant::now();
+            while !ok(&status()) {
+                assert!(t.elapsed() < Duration::from_secs(10), "{what}");
+                std::thread::sleep(Duration::from_millis(20));
+            }
+        };
+        // `T`: stopped (/proc/<pid>/stat, the field after the name)
+        let frozen = |pid: u32| {
+            let stat = std::fs::read_to_string(format!("/proc/{pid}/stat")).unwrap();
+            stat.rsplit_once(") ").unwrap().1.starts_with('T')
+        };
+        wait("not loaded", &|st| st.waiting);
+        std::thread::sleep(Duration::from_millis(400));
+        assert!(!status().running, "not started while nothing wants it");
+        shared.want("dormeur", Duration::from_secs(1));
+        wait("wanted: started", &|st| st.running && !st.waiting);
+        let pid = status().pid.unwrap();
+        wait("paused, no longer wanted", &|st| st.paused);
+        assert!(frozen(pid));
+        shared.api.broadcast(&json!({"event": "standby", "asleep": true}));
+        shared.api.emit(None, json!({"event": "turn", "knob": 1, "delta": 1}));
+        assert!(rx.try_recv().is_err(), "nothing for a paused module");
+
+        shared.want("dormeur", Duration::from_secs(30));
+        wait("wanted again: runs", &|st| !st.paused);
+        assert!(!frozen(pid));
+        let missed: Vec<serde_json::Value> = rx.try_iter().map(|l| serde_json::from_str(&l).unwrap()).collect();
+        assert_eq!(missed, [json!({"event": "standby", "asleep": true})], "the missed broadcast, not the input");
+
+        shared.wanted.lock().unwrap().clear();
+        wait("hidden again", &|st| st.paused);
+        shared.api.send(id, &json!({"event": "command", "command": "x"}));
+        wait("woken up by a message", &|st| !st.paused);
+        wait("paused after it", &|st| st.paused);
+
+        shared.config.write().unwrap().tools[0].pause_hidden = false;
+        wait("option off: runs", &|st| !st.paused);
+        assert!(!frozen(pid));
+        std::thread::sleep(SETTLE + Duration::from_millis(300));
+        assert_eq!((status().pid, status().restarts), (Some(pid), 0), "not restarted");
+
+        shared.config.write().unwrap().tools[0].pause_hidden = true;
+        wait("option on: paused", &|st| st.paused);
+        wait("unloaded", &|st| !st.running && st.waiting && st.pid.is_none());
+        assert!(!std::path::Path::new(&format!("/proc/{pid}")).exists(), "its process ended");
+        std::thread::sleep(Duration::from_millis(400));
+        assert!(!status().running && status().last_exit.is_none(), "not restarted, not a failure");
         shared.quit.store(true, Ordering::Relaxed);
         sup.join().unwrap();
     }
@@ -1057,6 +1263,7 @@ mod tests {
             args: Vec::new(),
             command: String::new(),
             keep_awake: false,
+            pause_hidden: false,
         });
         let (s, d) = (shared.clone(), dir.clone());
         let sup = std::thread::spawn(move || supervise(&s, &d));
@@ -1098,6 +1305,7 @@ mod tests {
             args: Vec::new(),
             command: String::new(),
             keep_awake: false,
+            pause_hidden: false,
         });
         let (s, d) = (shared.clone(), dir.clone());
         let sup = std::thread::spawn(move || supervise(&s, &d));
